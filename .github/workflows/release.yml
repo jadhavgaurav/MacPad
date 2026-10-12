@@ -52,6 +52,14 @@ jobs:
           ZIP="NotePad-${VERSION}-macos.zip"
           ditto -c -k --sequesterRsrc --keepParent build/NotePad.app "$ZIP"
           shasum -a 256 "$ZIP" > "$ZIP.sha256"
+
+          # DMG: the app next to an Applications shortcut, so users can drag it across.
+          STAGING="$(mktemp -d)"
+          cp -R build/NotePad.app "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          DMG="NotePad-${VERSION}-macos.dmg"
+          hdiutil create -volname "NotePad ${VERSION}" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
+          shasum -a 256 "$DMG" > "$DMG.sha256"
           ls -l NotePad-*
 
       - uses: actions/upload-artifact@v4
