@@ -213,7 +213,7 @@ final class AppState {
         }
     }
 
-    private func add(_ doc: TextDocument) {
+    func add(_ doc: TextDocument) {
         tabs.append(doc)
         persist(doc)
         select(doc.id)

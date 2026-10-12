@@ -20,6 +20,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         center.addObserver(forName: NSWindow.didExitFullScreenNotification, object: nil, queue: .main) { _ in
             Task { @MainActor in AppState.shared.isFullScreen = false }
         }
+        NSApp.servicesProvider = self
+    }
+
+    /// Services menu entry: receives the selected text from another app and opens it in a new tab.
+    @objc func openSelection(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        guard let text = pasteboard.string(forType: .string) else {
+            error.pointee = "The selection has no plain text." as NSString
+            return
+        }
+        Task { @MainActor in AppState.shared.openServiceText(text) }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
