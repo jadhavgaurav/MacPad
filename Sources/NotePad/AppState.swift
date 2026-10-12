@@ -1,0 +1,379 @@
+import AppKit
+import NotePadCore
+import Observation
+
+enum DiskStatus: Equatable {
+    case changed
+    case missing
+}
+
+@MainActor
+@Observable
+final class AppState {
+    static let shared = AppState()
+
+    var tabs: [TextDocument] = []
+    var activeID: UUID?
+    var notice: String?
+    var diskStatus: [UUID: DiskStatus] = [:]
+    var gotoVisible = false
+    var previewFraction = 0.0
+    let find = FindModel()
+    let stats = StatsModel()
+
+    @ObservationIgnored private var coordinator: SessionCoordinator?
+    @ObservationIgnored private var editors: [UUID: EditorController] = [:]
+    @ObservationIgnored private var started = false
+    @ObservationIgnored private var pendingURLs: [URL] = []
+    @ObservationIgnored private var noticeTask: Task<Void, Never>?
+
+    var activeDocument: TextDocument? { tabs.first { $0.id == activeID } }
+    var activeEditor: EditorController? { activeID.flatMap { editors[$0] } }
+
+    // MARK: Startup and shutdown
+
+    func start() async {
+        guard !started else { return }
+        started = true
+        do {
+            let store = SessionStore(directory: try SessionStore.defaultDirectory())
+            let result = try store.restore()
+            if result.isReadOnly {
+                showNotice("This session was saved by a newer version of NotePad, so changes won't be remembered.")
+            } else {
+                coordinator = SessionCoordinator(store: store) { [weak self] error in
+                    Task { @MainActor in self?.showNotice("Couldn't save your session. \(error.localizedDescription)") }
+                }
+            }
+            tabs = result.snapshots.map(TextDocument.init(snapshot:))
+            activeID = result.activeTabID
+            if result.quarantinedCount > 0 {
+                let count = result.quarantinedCount
+                showNotice("\(count) saved tab\(count == 1 ? "" : "s") couldn't be read and was set aside.")
+            } else if result.recoveredOrphanCount > 0 {
+                let count = result.recoveredOrphanCount
+                showNotice("Recovered \(count) tab\(count == 1 ? "" : "s") from your last session.")
+            }
+        } catch {
+            showNotice("Couldn't restore your last session. \(error.localizedDescription)")
+        }
+        if tabs.isEmpty { newTab() }
+        activeID = activeID ?? tabs.first?.id
+        persistManifest()
+        let queued = pendingURLs
+        pendingURLs = []
+        if !queued.isEmpty { open(queued) }
+        checkDisk()
+        refreshStats(textChanged: true)
+    }
+
+    /// Writes every tab and the manifest. Awaited before the app quits.
+    func flushSession() async {
+        guard let coordinator else { return }
+        for doc in tabs { await coordinator.schedule(doc.snapshot) }
+        await coordinator.flush()
+        await coordinator.saveManifest(manifest)
+    }
+
+    // MARK: Tabs
+
+    func controller(for doc: TextDocument) -> EditorController {
+        if let existing = editors[doc.id] { return existing }
+        let controller = EditorController(document: doc)
+        controller.onEdit = { [weak self] doc in self?.documentEdited(doc) }
+        controller.onSelectionChange = { [weak self] doc in self?.selectionChanged(doc) }
+        controller.onScroll = { [weak self] doc, fraction in
+            guard let self else { return }
+            if doc.id == self.activeID { self.previewFraction = fraction }
+            self.persist(doc)
+        }
+        editors[doc.id] = controller
+        return controller
+    }
+
+    func newTab() { add(TextDocument()) }
+
+    func select(_ id: UUID) {
+        guard tabs.contains(where: { $0.id == id }) else { return }
+        activeID = id
+        persistManifest()
+        find.refresh()
+        refreshStats(textChanged: true)
+        activeEditor?.focus()
+    }
+
+    func cycleTab(by delta: Int) {
+        guard tabs.count > 1, let index = tabs.firstIndex(where: { $0.id == activeID }) else { return }
+        select(tabs[(index + delta + tabs.count) % tabs.count].id)
+    }
+
+    func selectTab(number: Int) {
+        guard !tabs.isEmpty else { return }
+        select(number >= 9 ? tabs[tabs.count - 1].id : tabs[min(number - 1, tabs.count - 1)].id)
+    }
+
+    func moveTab(_ id: UUID, before target: UUID) {
+        guard id != target,
+              let from = tabs.firstIndex(where: { $0.id == id }),
+              let to = tabs.firstIndex(where: { $0.id == target }) else { return }
+        tabs.move(fromOffsets: IndexSet(integer: from), toOffset: to)
+        persistManifest()
+    }
+
+    func closeTab(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let doc = tabs[index]
+        let isPristine = doc.fileURL == nil && doc.text.isEmpty
+        if doc.isDirty && !isPristine {
+            switch Dialogs.confirmClose(doc) {
+            case .save: if !save(doc) { return }
+            case .discard: break
+            case .cancel: return
+            }
+        }
+        remove(at: index)
+    }
+
+    func closeOthers(keeping id: UUID) {
+        for doc in tabs where doc.id != id { closeTab(doc.id) }
+    }
+
+    func closeTabs(after id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        for doc in tabs.suffix(from: index + 1) { closeTab(doc.id) }
+    }
+
+    private func add(_ doc: TextDocument) {
+        tabs.append(doc)
+        persist(doc)
+        select(doc.id)
+    }
+
+    private func remove(at index: Int) {
+        let id = tabs[index].id
+        tabs.remove(at: index)
+        editors[id] = nil
+        diskStatus[id] = nil
+        if let coordinator { Task { await coordinator.remove(id) } }
+        if activeID == id { activeID = tabs.isEmpty ? nil : tabs[min(index, tabs.count - 1)].id }
+        if tabs.isEmpty { newTab() } else { persistManifest(); find.refresh(); refreshStats(textChanged: true) }
+    }
+
+    // MARK: Files
+
+    func presentOpenPanel() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK else { return }
+        open(panel.urls)
+    }
+
+    func open(_ urls: [URL]) {
+        guard started else { pendingURLs += urls; return }
+        for url in urls.map(\.standardizedFileURL) {
+            if let existing = tabs.first(where: { $0.fileURL?.standardizedFileURL == url }) {
+                select(existing.id)
+            } else {
+                openFile(url, encoding: nil)
+            }
+        }
+    }
+
+    private func openFile(_ url: URL, encoding: TextEncoding?) {
+        do {
+            let file = try FileService.read(url, as: encoding)
+            let doc = TextDocument(text: file.text, fileURL: url, encoding: file.encoding, lineEnding: file.lineEnding)
+            doc.diskModificationDate = file.modificationDate
+            let pristine = tabs.count == 1 && tabs[0].fileURL == nil && tabs[0].text.isEmpty ? tabs[0] : nil
+            add(doc)
+            if let pristine, let index = tabs.firstIndex(where: { $0.id == pristine.id }) { remove(at: index) }
+        } catch FileServiceError.undecodable(let failed, _) {
+            let message = "Choose an encoding to try."
+            if let chosen = Dialogs.chooseEncoding(for: failed, message: message) { openFile(url, encoding: chosen) }
+        } catch {
+            Dialogs.showError(error)
+        }
+    }
+
+    @discardableResult
+    func save(_ doc: TextDocument) -> Bool {
+        guard let url = doc.fileURL, diskStatus[doc.id] != .missing else { return saveAs(doc) }
+        return write(doc, to: url)
+    }
+
+    @discardableResult
+    func saveAs(_ doc: TextDocument) -> Bool {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = doc.fileURL?.lastPathComponent ?? "Untitled.txt"
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        return write(doc, to: url)
+    }
+
+    private func write(_ doc: TextDocument, to url: URL) -> Bool {
+        do {
+            try FileService.write(doc.text, to: url, encoding: doc.encoding, lineEnding: doc.lineEnding)
+            doc.markSaved(to: url, modificationDate: FileService.modificationDate(of: url))
+            diskStatus[doc.id] = nil
+            persist(doc)
+            return true
+        } catch {
+            Dialogs.showError(error)
+            return false
+        }
+    }
+
+    func reopen(_ doc: TextDocument, as encoding: TextEncoding) {
+        guard let url = doc.fileURL else { return }
+        do {
+            let file = try FileService.read(url, as: encoding)
+            doc.encoding = file.encoding
+            doc.lineEnding = file.lineEnding
+            doc.diskModificationDate = file.modificationDate
+            doc.isDirty = false
+            controller(for: doc).reset(text: file.text)
+            persist(doc)
+            refreshStats(textChanged: true)
+        } catch {
+            Dialogs.showError(error)
+        }
+    }
+
+    func setEncoding(_ encoding: TextEncoding, for doc: TextDocument) {
+        doc.encoding = encoding
+        doc.isDirty = true
+        persist(doc)
+    }
+
+    func setLineEnding(_ lineEnding: LineEnding, for doc: TextDocument) {
+        doc.lineEnding = lineEnding
+        doc.isDirty = true
+        persist(doc)
+    }
+
+    // MARK: Disk changes
+
+    func checkDisk() {
+        for doc in tabs {
+            guard let url = doc.fileURL else { continue }
+            guard let modified = FileService.modificationDate(of: url) else {
+                diskStatus[doc.id] = .missing
+                continue
+            }
+            let known = doc.diskModificationDate ?? .distantPast
+            guard abs(modified.timeIntervalSince(known)) > 0.5 else { continue }
+            if doc.isDirty { diskStatus[doc.id] = .changed } else { reloadFromDisk(doc) }
+        }
+    }
+
+    func reloadFromDisk(_ doc: TextDocument) {
+        guard let url = doc.fileURL else { return }
+        do {
+            let file = try FileService.read(url, as: doc.encoding)
+            doc.lineEnding = file.lineEnding
+            doc.diskModificationDate = file.modificationDate
+            doc.isDirty = false
+            diskStatus[doc.id] = nil
+            controller(for: doc).reset(text: file.text)
+            persist(doc)
+            refreshStats(textChanged: true)
+        } catch {
+            Dialogs.showError(error)
+        }
+    }
+
+    func keepMine(_ doc: TextDocument) {
+        doc.diskModificationDate = doc.fileURL.flatMap(FileService.modificationDate(of:))
+        diskStatus[doc.id] = nil
+        persist(doc)
+    }
+
+    // MARK: Editing callbacks
+
+    func documentEdited(_ doc: TextDocument) {
+        persist(doc)
+        guard doc.id == activeID else { return }
+        find.refresh()
+        refreshStats(textChanged: true)
+    }
+
+    func selectionChanged(_ doc: TextDocument) {
+        persist(doc)
+        guard doc.id == activeID else { return }
+        refreshStats(textChanged: false)
+    }
+
+    func refreshStats(textChanged: Bool) {
+        guard let doc = activeDocument else { return }
+        stats.update(text: doc.text, selection: doc.selection, textChanged: textChanged)
+    }
+
+    // MARK: View commands
+
+    func format(_ command: MarkdownCommand) { activeEditor?.apply(command) }
+
+    func toggleWordWrap() {
+        guard let doc = activeDocument else { return }
+        doc.wordWrapOverride = !doc.usesWordWrap(default: EditorSettings.current().wrapByDefault)
+        persist(doc)
+    }
+
+    func toggleFormattedView() {
+        guard let doc = activeDocument else { return }
+        doc.formattedOverride = !doc.usesFormattedView(formatAllText: EditorSettings.current().formatAllText)
+        persist(doc)
+    }
+
+    func togglePreview() {
+        guard let doc = activeDocument else { return }
+        doc.previewVisible.toggle()
+        persist(doc)
+    }
+
+    func zoom(by factor: Double) {
+        guard let doc = activeDocument else { return }
+        doc.adjustZoom(by: factor)
+        persist(doc)
+    }
+
+    func resetZoom() {
+        guard let doc = activeDocument else { return }
+        doc.zoom = 1
+        persist(doc)
+    }
+
+    /// Moves the caret to the start of `line`. Returns false when the line doesn't exist.
+    func goTo(line: Int) -> Bool {
+        guard let doc = activeDocument, let range = LineLocator.range(ofLine: line, in: doc.text) else { return false }
+        activeEditor?.select(range)
+        activeEditor?.focus()
+        return true
+    }
+
+    // MARK: Persistence
+
+    private var manifest: SessionManifest { SessionManifest(tabIDs: tabs.map(\.id), activeTabID: activeID) }
+
+    private func persist(_ doc: TextDocument) {
+        guard let coordinator else { return }
+        let snapshot = doc.snapshot
+        Task { await coordinator.schedule(snapshot) }
+    }
+
+    private func persistManifest() {
+        guard let coordinator else { return }
+        let manifest = manifest
+        Task { await coordinator.saveManifest(manifest) }
+    }
+
+    func showNotice(_ text: String) {
+        notice = text
+        noticeTask?.cancel()
+        noticeTask = Task {
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            notice = nil
+        }
+    }
+}

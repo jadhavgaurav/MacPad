@@ -1,0 +1,24 @@
+#!/bin/bash
+# Builds NotePad and assembles NotePad.app in ./build. Works with Command Line Tools only (no Xcode needed).
+# Usage: Scripts/bundle.sh [debug|release]   (default: release)
+set -euo pipefail
+
+CONFIG="${1:-release}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+APP="$ROOT/build/NotePad.app"
+ICONSET="$ROOT/build/AppIcon.iconset"
+
+cd "$ROOT"
+swift build -c "$CONFIG"
+BIN="$(swift build -c "$CONFIG" --show-bin-path)/NotePad"
+
+rm -rf "$APP" "$ICONSET"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp "$BIN" "$APP/Contents/MacOS/NotePad"
+cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+
+swift "$ROOT/Scripts/make-icon.swift" "$ICONSET"
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+
+codesign --force --sign - "$APP"
+echo "Built $APP"

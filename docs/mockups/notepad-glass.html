@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NotePad glass mockup</title>
+<style>
+/* Web approximation of Apple Liquid Glass for design review only.
+   The shipping app uses the real system material (NSGlassEffectView / glassEffect). */
+:root{
+  --wall-a:#9ec5e8;--wall-b:#c9b8e8;--wall-c:#f1c9b8;
+  --paper:#fbfbfc;--ink:#1d1d1f;--ink2:#6e6e73;--ink3:#a1a1a6;
+  --accent:#0a7aff;--accent-wash:rgba(10,122,255,.16);--find:rgba(255,204,0,.45);--find-cur:rgba(255,159,10,.55);
+  --glass-fill:rgba(255,255,255,.52);--glass-edge:rgba(255,255,255,.65);--glass-shade:rgba(0,0,0,.10);
+  --hair:rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme:dark){:root{
+  --wall-a:#1d3350;--wall-b:#3a2a55;--wall-c:#552f3a;
+  --paper:#1e1e20;--ink:#f5f5f7;--ink2:#a1a1a6;--ink3:#6e6e73;
+  --accent:#0a84ff;--accent-wash:rgba(10,132,255,.28);--find:rgba(255,214,10,.28);--find-cur:rgba(255,159,10,.45);
+  --glass-fill:rgba(40,40,44,.52);--glass-edge:rgba(255,255,255,.16);--glass-shade:rgba(0,0,0,.45);
+  --hair:rgba(255,255,255,.08);
+}}
+*{box-sizing:border-box;margin:0}
+body{min-height:100dvh;display:grid;place-items:center;padding:24px 16px;font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;color:var(--ink);
+  background:radial-gradient(60% 70% at 15% 20%,var(--wall-a),transparent 70%),radial-gradient(55% 60% at 85% 30%,var(--wall-b),transparent 70%),radial-gradient(60% 60% at 50% 100%,var(--wall-c),transparent 70%),var(--wall-a)}
+body>div{width:min(920px,100%)}
+.ctrl{display:flex;gap:8px;margin-bottom:16px}
+.ctrl button{font:inherit;padding:6px 14px;border-radius:999px;border:1px solid var(--glass-edge);background:var(--glass-fill);color:var(--ink);backdrop-filter:blur(20px) saturate(180%);cursor:pointer}
+.ctrl button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:transparent}
+.win{position:relative;width:min(920px,100%);height:560px;border-radius:22px;overflow:hidden;background:var(--paper);box-shadow:0 0 0 1px var(--hair),0 30px 80px rgba(0,0,0,.28),0 8px 24px rgba(0,0,0,.14)}
+.glass{position:absolute;z-index:2;isolation:isolate;border:1px solid var(--glass-edge);background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.04)),var(--glass-fill);
+  backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 10px 30px var(--glass-shade)}
+@media (prefers-color-scheme:dark){.glass{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 10px 30px var(--glass-shade)}}
+@media (prefers-reduced-transparency:reduce){.glass{backdrop-filter:none;background:var(--paper)}}
+.lights{position:absolute;z-index:3;top:20px;left:20px;display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.tabs{top:10px;left:96px;right:96px;height:36px;border-radius:999px;display:flex;align-items:center;gap:2px;padding:4px}
+.tab{flex:0 1 180px;min-width:0;height:28px;border-radius:999px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--ink2);font-size:12px}
+.tab .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab.on{background:var(--accent-wash);color:var(--ink)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ink2);flex:none}
+.x{width:10px;text-align:center;color:var(--ink3);flex:none}
+.plus{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);font-size:16px}
+.tools{top:10px;right:16px;height:36px;border-radius:999px;display:flex;gap:2px;padding:4px}
+.tools b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);font-weight:400;font-size:15px}
+.tools b.on{background:var(--accent-wash);color:var(--accent)}
+.stage{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr)}
+.stage.split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.pane{padding:68px 28px 64px;overflow:hidden;font:13px/1.45 ui-monospace,"SF Mono",Menlo,monospace;white-space:pre-wrap;color:var(--ink)}
+.prev{padding:68px 36px 64px;font:14px/1.65 -apple-system,system-ui,sans-serif;white-space:normal;border-left:1px solid var(--hair);background:rgba(127,127,127,.05)}
+.prev h1{font-size:24px;margin-bottom:8px;letter-spacing:-.01em}.prev h2{font-size:16px;margin:20px 0 6px}.prev p,.prev li{margin-bottom:4px}.prev ul{padding-left:20px}
+.m{background:var(--find);border-radius:3px}.mc{background:var(--find-cur);border-radius:3px;box-shadow:0 0 0 1.5px var(--find-cur)}
+.caret{display:inline-block;width:2px;height:15px;background:var(--accent);vertical-align:-3px}
+.find{top:60px;right:20px;border-radius:14px;padding:6px 8px;display:flex;align-items:center;gap:8px;font-size:12px}
+.find input{font:inherit;width:140px;height:26px;border-radius:8px;border:1px solid var(--hair);background:rgba(127,127,127,.12);color:var(--ink);padding:0 8px;outline:0}
+.find input:focus{box-shadow:0 0 0 3px var(--accent-wash);border-color:var(--accent)}
+.find .c{color:var(--ink2);min-width:44px}
+.find .t{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--ink2)}
+.find .t.on{background:var(--accent-wash);color:var(--accent)}
+.status{bottom:12px;left:50%;transform:translateX(-50%);height:28px;border-radius:999px;display:flex;align-items:center;gap:2px;padding:0 6px;font-size:11px;color:var(--ink2);white-space:nowrap}
+.status span{padding:3px 8px;border-radius:999px;font-variant-numeric:tabular-nums}
+.status .sep{width:1px;height:12px;background:var(--hair);margin:0 4px}
+.pane:focus{outline:0}
+.status .b:hover{background:var(--accent-wash);color:var(--ink)}
+[hidden]{display:none!important}
+@media (max-width:760px){.status{height:auto;width:calc(100% - 24px);flex-wrap:wrap;justify-content:center;padding:4px 6px;border-radius:18px}.pane{padding-bottom:96px}}
+@media (max-width:640px){.win{height:540px}.tab:nth-child(n+3){display:none}.status .sep{display:none}}
+</style>
+</head>
+<body>
+<div>
+<div class="ctrl" role="group" aria-label="Mockup state">
+<button id="b1" aria-pressed="true">Editing</button>
+<button id="b2" aria-pressed="false">Find open</button>
+<button id="b3" aria-pressed="false">Markdown preview</button>
+</div>
+
+<div class="win">
+<div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+
+<div class="glass tabs" id="tabs">
+<div class="tab on"><span class="dot" aria-label="Unsaved"></span><span class="n">meeting-notes.txt</span></div>
+<div class="tab"><span class="n">README.md</span><span class="x" aria-hidden="true">&times;</span></div>
+<div class="tab"><span class="dot" aria-label="Unsaved"></span><span class="n">Untitled</span></div>
+<div class="plus" aria-label="New tab">+</div>
+</div>
+<div class="glass tools"><b aria-label="Find">&#8981;</b><b id="mdbtn" aria-label="Markdown preview">&#9707;</b></div>
+
+<div class="stage" id="stage">
+<div class="pane" id="pane" contenteditable="plaintext-only" spellcheck="false" aria-label="Editor"><span id="txt">Meeting notes, Mon 12 Oct
+
+Attendees: Priya, Tomas, Ana
+
+- Ship <span class="m">the</span> session store first
+- Tab bar prototype by Thursday
+- Decide on <span class="mc">the</span> markdown renderer<span class="caret"></span>
+
+TODO
+  find <span class="m">the</span> old export script
+  send <span class="m">the</span> draft to Tomas
+
+Notes from last week stay below so the
+glass bars have real text to blur as it
+scrolls underneath them.
+
+  - restore flow works after force quit
+  - encoding picker needs a popover
+  - zoom should persist per tab</span><span id="md" hidden># NotePad
+
+A fast, quiet text editor for macOS.
+
+## Features
+
+- Tabs that never lose your text
+- Find and replace
+- Markdown preview</span></div>
+<div class="pane prev" id="prev" hidden>
+<h1>NotePad</h1>
+<p>A fast, quiet text editor for macOS.</p>
+<h2>Features</h2>
+<ul><li>Tabs that never lose your text</li><li>Find and replace</li><li>Markdown preview</li></ul>
+</div>
+</div>
+
+<div class="glass find" id="find" hidden>
+<span style="color:var(--ink2)">&#8981;</span>
+<input type="text" value="the" aria-label="Find">
+<span class="c">2 of 4</span>
+<span class="t on">Aa</span><span class="t">&#8963;</span><span class="t">&#8964;</span><span class="t">&times;</span>
+</div>
+
+<div class="glass status">
+<span class="b" id="pos">Ln 7, Col 35</span><i class="sep"></i><span id="sLines">Lines 0</span><span id="sWords">Words 0</span><span id="sChars">Chars 0</span><span id="sNoSp">No spaces 0</span><i class="sep"></i><span class="b">100%</span><span class="b">LF</span><span class="b">UTF-8</span>
+</div>
+</div>
+</div>
+
+<script>
+var stage=document.getElementById('stage'),prev=document.getElementById('prev'),txt=document.getElementById('txt'),md=document.getElementById('md'),
+find=document.getElementById('find'),pane=document.getElementById('pane'),pos=document.getElementById('pos'),mdbtn=document.getElementById('mdbtn'),
+tabs=document.querySelectorAll('.tab'),btns=[b1,b2,b3];
+function mode(m){
+  var f=m==='find',p=m==='md';
+  find.hidden=!f; stage.classList.toggle('split',p); prev.hidden=!p; txt.hidden=p; md.hidden=!p;
+  mdbtn.classList.toggle('on',p);
+  tabs.forEach(function(t,i){t.classList.toggle('on',i===(p?1:0))});
+  stats();
+  btns.forEach(function(b,i){b.setAttribute('aria-pressed',String(i===(f?1:p?2:0)))});
+}
+var nf=new Intl.NumberFormat();
+function setT(id,label,n){document.getElementById(id).textContent=label+' '+nf.format(n)}
+function stats(){
+  var el=md.hidden?txt:md, t=el.textContent, sel=getSelection(), selText=sel&&!sel.isCollapsed&&pane.contains(sel.anchorNode)?sel.toString():'';
+  var s=selText||t, label=selText?'Selected ':'';
+  var words=s.trim()?s.trim().split(/\s+/).length:0;
+  setT('sLines',label+'Lines',s.length?s.split('\n').length:0);
+  setT('sWords',label+'Words',words);
+  setT('sChars',label+'Chars',s.length);
+  setT('sNoSp',label+'No spaces',s.replace(/\s/g,'').length);
+  var ln=1,col=1;
+  if(sel&&sel.rangeCount&&el.contains(sel.focusNode)){
+    var r=document.createRange();r.selectNodeContents(el);r.setEnd(sel.focusNode,sel.focusOffset);
+    var before=r.toString();ln=before.split('\n').length;col=before.length-before.lastIndexOf('\n');
+  }
+  pos.textContent='Ln '+ln+', Col '+col;
+}
+stats();
+pane.addEventListener('input',stats);
+document.addEventListener('selectionchange',stats);
+b1.onclick=function(){mode('edit')};b2.onclick=function(){mode('find')};b3.onclick=function(){mode('md')};
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+import AppKit
+import NotePadCore
+import SwiftUI
+
+struct ContentView: View {
+    private let state = AppState.shared
+    @AppStorage(SettingsKey.fontName) private var fontName = EditorSettings.systemMono
+    @AppStorage(SettingsKey.fontSize) private var fontSize = 13.0
+    @AppStorage(SettingsKey.wrapByDefault) private var wrapByDefault = true
+    @AppStorage(SettingsKey.formatAllText) private var formatAllText = false
+
+    private var settings: EditorSettings {
+        EditorSettings(fontName: fontName, fontSize: fontSize, wrapByDefault: wrapByDefault, formatAllText: formatAllText)
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            editorArea
+            overlays
+        }
+        .background(WindowConfigurator())
+        .ignoresSafeArea()
+        .animation(.easeOut(duration: 0.15), value: state.find.isVisible)
+        .animation(.easeOut(duration: 0.15), value: state.notice)
+        .animation(.easeOut(duration: 0.15), value: state.activeID.flatMap { state.diskStatus[$0] })
+        .dropDestination(for: URL.self) { urls, _ in
+            state.open(urls.filter(\.isFileURL))
+            return !urls.isEmpty
+        }
+    }
+
+    @ViewBuilder private var editorArea: some View {
+        if let doc = state.activeDocument {
+            HStack(spacing: 0) {
+                EditorHost(
+                    controller: state.controller(for: doc),
+                    settings: settings,
+                    zoom: doc.zoom,
+                    wrap: doc.usesWordWrap(default: wrapByDefault),
+                    formatted: doc.usesFormattedView(formatAllText: formatAllText)
+                )
+                .id(doc.id)
+                if doc.previewVisible {
+                    Divider()
+                    MarkdownPreviewView(markdown: doc.text, scrollFraction: state.previewFraction)
+                        .frame(minWidth: 240)
+                }
+            }
+        } else {
+            Color(nsColor: .textBackgroundColor)
+        }
+    }
+
+    private var overlays: some View {
+        ZStack {
+            VStack(spacing: 8) {
+                GlassGroup(spacing: 10) {
+                    HStack(spacing: 10) {
+                        TabBarView(state: state).padding(.leading, 74)
+                        ToolbarView(state: state, formatAllText: formatAllText, wrapByDefault: wrapByDefault)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 6)
+
+                if let doc = state.activeDocument, let status = state.diskStatus[doc.id] {
+                    DiskNoticeView(state: state, doc: doc, status: status)
+                }
+                if let notice = state.notice { NoticeView(text: notice) }
+                if state.find.isVisible {
+                    FindBarView(find: state.find)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 16)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                Spacer(minLength: 0)
+            }
+            VStack {
+                Spacer()
+                StatusBarView(state: state).padding(.bottom, 12)
+            }
+        }
+    }
+}
+
+/// Makes the title bar area draggable and the window comfortable to resize.
+private struct WindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            window.isMovableByWindowBackground = true
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}

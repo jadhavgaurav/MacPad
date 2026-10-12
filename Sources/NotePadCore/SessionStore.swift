@@ -1,0 +1,122 @@
+import Foundation
+
+public struct SessionManifest: Codable, Equatable, Sendable {
+    public static let currentSchemaVersion = 1
+
+    public var schemaVersion: Int
+    public var tabIDs: [UUID]
+    public var activeTabID: UUID?
+
+    public init(schemaVersion: Int = SessionManifest.currentSchemaVersion, tabIDs: [UUID], activeTabID: UUID?) {
+        self.schemaVersion = schemaVersion
+        self.tabIDs = tabIDs
+        self.activeTabID = activeTabID
+    }
+}
+
+public struct RestoreResult: Equatable, Sendable {
+    public var snapshots: [TabSnapshot]
+    public var activeTabID: UUID?
+    public var quarantinedCount: Int
+    public var recoveredOrphanCount: Int
+    /// True when the manifest was written by a newer version. Nothing should be written back.
+    public var isReadOnly: Bool
+}
+
+/// Reads and writes the session directory. Every write is atomic (temp file, then rename).
+public struct SessionStore: Sendable {
+    public let directory: URL
+    private var manifestURL: URL { directory.appendingPathComponent("manifest.json") }
+    private var quarantineURL: URL { directory.appendingPathComponent("quarantine", isDirectory: true) }
+
+    public init(directory: URL) { self.directory = directory }
+
+    /// `~/Library/Application Support/NotePad/session`, or the folder named by `NOTEPAD_SESSION_DIR`
+    /// (used by tests and visual QA so they never touch the real session).
+    public static func defaultDirectory() throws -> URL {
+        if let override = ProcessInfo.processInfo.environment["NOTEPAD_SESSION_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        let support = try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        )
+        return support.appendingPathComponent("NotePad/session", isDirectory: true)
+    }
+
+    public func save(_ snapshot: TabSnapshot) throws {
+        try ensureDirectory()
+        try JSONEncoder().encode(snapshot).write(to: tabURL(snapshot.id), options: .atomic)
+    }
+
+    public func saveManifest(_ manifest: SessionManifest) throws {
+        try ensureDirectory()
+        try JSONEncoder().encode(manifest).write(to: manifestURL, options: .atomic)
+    }
+
+    public func remove(_ id: UUID) throws {
+        let url = tabURL(id)
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+    }
+
+    public func restore() throws -> RestoreResult {
+        try ensureDirectory()
+        var quarantined = 0
+        var manifest: SessionManifest?
+
+        if let data = try? Data(contentsOf: manifestURL) {
+            if let decoded = try? JSONDecoder().decode(SessionManifest.self, from: data) {
+                manifest = decoded
+            } else {
+                try quarantine(manifestURL)
+                quarantined += 1
+            }
+        }
+        if let manifest, manifest.schemaVersion > SessionManifest.currentSchemaVersion {
+            return RestoreResult(snapshots: [], activeTabID: nil, quarantinedCount: 0, recoveredOrphanCount: 0, isReadOnly: true)
+        }
+
+        var byID: [UUID: TabSnapshot] = [:]
+        var modified: [UUID: Date] = [:]
+        let files = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.contentModificationDateKey]
+        )
+        for file in files where file.pathExtension == "json" && file.lastPathComponent != "manifest.json" {
+            do {
+                let snapshot = try JSONDecoder().decode(TabSnapshot.self, from: Data(contentsOf: file))
+                byID[snapshot.id] = snapshot
+                modified[snapshot.id] = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            } catch {
+                try quarantine(file)
+                quarantined += 1
+            }
+        }
+
+        var ordered: [TabSnapshot] = []
+        for id in manifest?.tabIDs ?? [] {
+            if let snapshot = byID.removeValue(forKey: id) { ordered.append(snapshot) }
+        }
+        let orphans = byID.values.sorted {
+            (modified[$0.id] ?? .distantPast, $0.id.uuidString) < (modified[$1.id] ?? .distantPast, $1.id.uuidString)
+        }
+        ordered.append(contentsOf: orphans)
+
+        let active = manifest?.activeTabID.flatMap { id in ordered.contains { $0.id == id } ? id : nil } ?? ordered.first?.id
+        return RestoreResult(
+            snapshots: ordered, activeTabID: active, quarantinedCount: quarantined,
+            recoveredOrphanCount: orphans.count, isReadOnly: false
+        )
+    }
+
+    private func tabURL(_ id: UUID) -> URL { directory.appendingPathComponent("\(id.uuidString).json") }
+
+    private func ensureDirectory() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
+    private func quarantine(_ file: URL) throws {
+        try FileManager.default.createDirectory(at: quarantineURL, withIntermediateDirectories: true)
+        let target = quarantineURL.appendingPathComponent("\(Int(Date().timeIntervalSince1970))-\(file.lastPathComponent)")
+        try? FileManager.default.removeItem(at: target)
+        try FileManager.default.moveItem(at: file, to: target)
+    }
+}
