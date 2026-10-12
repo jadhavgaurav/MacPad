@@ -395,6 +395,17 @@ final class AppState {
 
     func format(_ command: MarkdownCommand) { activeEditor?.apply(command) }
 
+    /// Exports the active Markdown tab. Plain text is exported as Markdown, which renders as plain paragraphs.
+    func exportActive(asPDF: Bool) {
+        guard let doc = activeDocument else { return }
+        let name = doc.fileURL?.deletingPathExtension().lastPathComponent ?? doc.title
+        if asPDF {
+            MarkdownExporter.exportPDF(markdown: doc.text, title: name, suggestedName: name)
+        } else {
+            MarkdownExporter.exportHTML(markdown: doc.text, title: name, suggestedName: name)
+        }
+    }
+
     /// Save As for a read-only file: the user picks a new location, and the copy becomes writable.
     func saveAsCopy(_ doc: TextDocument) {
         if saveAs(doc) { doc.isReadOnly = false }

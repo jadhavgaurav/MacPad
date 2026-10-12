@@ -38,3 +38,15 @@ import Testing
         #expect(html.contains("<td>2</td>"))
     }
 }
+
+@Suite struct MarkdownPageTests {
+    @Test func pageHasDoctypeEscapedTitleAndBody() {
+        let page = MarkdownPage.document(body: "<h1>Hi</h1>", title: "A & B")
+        #expect(page.hasPrefix("<!doctype html>"))
+        #expect(page.contains("<title>A &amp; B</title>"))
+        #expect(page.contains("<h1>Hi</h1>"))
+    }
+    @Test func pageWithoutTitleHasNoTitleTag() {
+        #expect(!MarkdownPage.document(body: "x").contains("<title>"))
+    }
+}

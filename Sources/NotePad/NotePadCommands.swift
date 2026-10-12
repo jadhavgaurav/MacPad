@@ -8,6 +8,9 @@ struct NotePadCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Tab") { state.newTab() }.keyboardShortcut("n")
             Button("Open\u{2026}") { state.presentOpenPanel() }.keyboardShortcut("o")
+            Divider()
+            Button("Export as HTML\u{2026}") { state.exportActive(asPDF: false) }
+            Button("Export as PDF\u{2026}") { state.exportActive(asPDF: true) }
             Button("Recover Set-Aside Tabs\u{2026}") { state.recoveryVisible = true }
         }
         CommandGroup(replacing: .saveItem) {
