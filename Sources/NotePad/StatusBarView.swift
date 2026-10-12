@@ -71,6 +71,7 @@ struct StatusBarView: View {
         } label: { cell("\(Int((doc.zoom * 100).rounded()))%") }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .pointingHandCursor()
+            .accessibilityLabel("Zoom")
     }
 
     private func lineEndingMenu(_ doc: TextDocument) -> some View {
@@ -81,6 +82,7 @@ struct StatusBarView: View {
         } label: { cell(doc.lineEnding.label) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .pointingHandCursor()
+            .accessibilityLabel("Line ending, \(doc.lineEnding.label)")
     }
 
     private func encodingMenu(_ doc: TextDocument) -> some View {
@@ -100,6 +102,7 @@ struct StatusBarView: View {
         } label: { cell(doc.encoding.label) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .pointingHandCursor()
+            .accessibilityLabel("Encoding, \(doc.encoding.label)")
     }
 }
 

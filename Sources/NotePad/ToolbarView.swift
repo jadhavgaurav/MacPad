@@ -22,6 +22,7 @@ struct ToolbarView: View {
             }
             .menuIndicator(.visible)
             .help("Heading")
+            .accessibilityLabel("Heading")
             .frame(width: 46, height: 28)
             .pointingHandCursor()
 
@@ -33,6 +34,7 @@ struct ToolbarView: View {
             }
             .menuIndicator(.visible)
             .help("List")
+            .accessibilityLabel("List")
             .frame(width: 46, height: 28)
             .pointingHandCursor()
 
@@ -41,7 +43,7 @@ struct ToolbarView: View {
             iconButton("link", help: "Link (\u{2318}K)") { state.format(.link(url: nil)) }
 
             divider
-            iconButton("textformat", help: formatted ? "Show raw Markdown" : "Show formatted text", isOn: formatted) {
+            iconButton("textformat", help: formatted ? "Show raw Markdown" : "Show formatted text", label: "Formatted text", isOn: formatted) {
                 state.toggleFormattedView()
             }
             iconButton("sidebar.right", help: "Markdown preview", isOn: doc?.previewVisible ?? false) {
@@ -60,7 +62,9 @@ struct ToolbarView: View {
         Rectangle().fill(.quaternary).frame(width: 1, height: 16).padding(.horizontal, 2)
     }
 
-    private func iconButton(_ symbol: String, help: String, isOn: Bool = false, action: @escaping () -> Void) -> some View {
+    private func iconButton(
+        _ symbol: String, help: String, label: String? = nil, isOn: Bool = false, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
@@ -70,6 +74,7 @@ struct ToolbarView: View {
                 .pointingHandCursor()
         }
         .help(help)
-        .accessibilityLabel(help)
+        .accessibilityLabel(label ?? help)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
