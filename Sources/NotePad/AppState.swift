@@ -29,6 +29,7 @@ final class AppState {
     }
     let find = FindModel()
     let stats = StatsModel()
+    let snippets = SnippetLibrary()
 
     @ObservationIgnored private var coordinator: SessionCoordinator?
     @ObservationIgnored private var sessionStore: SessionStore?

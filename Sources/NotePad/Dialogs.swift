@@ -25,6 +25,33 @@ enum Dialogs {
         }
     }
 
+    /// Asks for a snippet name. Returns nil when cancelled or left blank.
+    static func askSnippetName(suggested: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = "Save Snippet"
+        alert.informativeText = "The snippet appears in the Snippets menu."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(string: suggested)
+        field.frame = NSRect(x: 0, y: 0, width: 300, height: 24)
+        field.setAccessibilityLabel("Snippet name")
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : name
+    }
+
+    static func confirmDeleteSnippet(_ name: String) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Delete \u{201C}\(name)\u{201D}?"
+        alert.informativeText = "The snippet is removed from the Snippets menu. This cannot be undone."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
     enum CloseManyChoice { case saveAll, discardAll, cancel }
 
     /// One question for several tabs with unsaved changes.

@@ -52,6 +52,27 @@ struct NotePadCommands: Commands {
             Button("Sort Lines") { state.lineCommand(LineEditor.sort) }
             Button("Remove Duplicate Lines") { state.lineCommand(LineEditor.removeDuplicates) }
         }
+        CommandMenu("Snippets") {
+            Menu("Templates") {
+                ForEach(SnippetStore.builtIn) { snippet in
+                    Button(snippet.name) { state.insertSnippet(snippet) }
+                }
+            }
+            Menu("My Snippets") {
+                ForEach(state.snippets.userSnippets) { snippet in
+                    Button(snippet.name) { state.insertSnippet(snippet) }
+                }
+            }
+            .disabled(state.snippets.userSnippets.isEmpty)
+            Divider()
+            Button("Save Selection as Snippet\u{2026}") { state.saveSelectionAsSnippet() }
+            Menu("Delete Snippet") {
+                ForEach(state.snippets.userSnippets) { snippet in
+                    Button(snippet.name) { state.deleteSnippet(snippet) }
+                }
+            }
+            .disabled(state.snippets.userSnippets.isEmpty)
+        }
         CommandGroup(after: .toolbar) {
             Divider()
             Button("Zoom In") { state.zoom(by: 1.1) }.keyboardShortcut("=")

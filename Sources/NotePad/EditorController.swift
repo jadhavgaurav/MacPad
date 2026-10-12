@@ -241,6 +241,19 @@ final class EditorController: NSObject, NSTextViewDelegate {
         if let selection { textView.setSelectedRange(selection) }
     }
 
+    var selectedText: String {
+        (textView.string as NSString).substring(with: textView.selectedRange())
+    }
+
+    /// Replaces the selection with `text` as one undoable edit, then puts the caret at `caretOffset` within it.
+    func insertText(_ text: String, caretOffset: Int?) {
+        let range = textView.selectedRange()
+        textView.insertText(text, replacementRange: range)
+        let caret = range.location + (caretOffset ?? (text as NSString).length)
+        textView.setSelectedRange(NSRange(location: caret, length: 0))
+        focus()
+    }
+
     func replaceCharacters(in range: NSRange, with string: String) {
         guard textView.shouldChangeText(in: range, replacementString: string) else { return }
         textView.textStorage?.replaceCharacters(in: range, with: string)
