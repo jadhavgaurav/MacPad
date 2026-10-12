@@ -9,6 +9,20 @@ A native macOS text editor that looks and works like Windows 11 Notepad, built w
 - Formatting toolbar, Formatted view, and a Markdown preview
 - Liquid Glass chrome on macOS 26 and later, with a system-material fallback on macOS 14 and 15
 
+## Install
+
+1. Go to the [Releases page](https://github.com/jadhavgaurav/NotePad/releases) and download the latest `NotePad-<version>-macos.zip`.
+2. Unzip it and drag `NotePad.app` into your Applications folder.
+3. Open it. The first time, macOS may say the app can't be opened because it is from an unidentified developer. Right-click (or Control-click) `NotePad.app`, choose **Open**, then click **Open** again. You only need to do this once.
+
+Each release also has a `.sha256` file. To check the download:
+
+```bash
+shasum -a 256 -c NotePad-<version>-macos.zip.sha256
+```
+
+NotePad is not yet notarized by Apple, which is why step 3 is needed.
+
 ## Requirements
 
 - macOS 14 or later
@@ -21,6 +35,17 @@ swift build
 Scripts/bundle.sh release     # builds build/NotePad.app
 open build/NotePad.app
 ```
+
+## Publish a release
+
+Push a version tag. The `Release` workflow tests the code, builds the app, and attaches the zip and checksum to a new GitHub release.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+You can also run the workflow by hand from the Actions tab to produce a build without publishing a release.
 
 ## Test
 

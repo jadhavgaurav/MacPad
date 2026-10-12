@@ -17,6 +17,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/NotePad"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
+# Release builds pass APP_VERSION (from the git tag). Stamp it before signing, because editing the plist afterwards breaks the signature.
+if [ -n "${APP_VERSION:-}" ]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER:-1}" "$APP/Contents/Info.plist"
+fi
+
 swift "$ROOT/Scripts/make-icon.swift" "$ICONSET"
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 

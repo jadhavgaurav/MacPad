@@ -1,0 +1,80 @@
+name: Release
+
+# Builds NotePad.app on a macOS runner and publishes it to GitHub Releases.
+# Push a tag such as v1.0.0 to release. Run it by hand from the Actions tab to test a build without a release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, for example 1.0.1"
+        required: true
+        default: "0.0.0-test"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$REF_TYPE" = "tag" ]; then
+            VERSION="${REF_NAME#v}"
+          else
+            VERSION="$INPUT_VERSION"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build and sign the app
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: Scripts/bundle.sh release
+
+      - name: Package the app
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ZIP="NotePad-${VERSION}-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/NotePad.app "$ZIP"
+          shasum -a 256 "$ZIP" > "$ZIP.sha256"
+          ls -l NotePad-*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NotePad-${{ steps.version.outputs.version }}
+          path: NotePad-*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$REF_NAME" dist/* \
+            --title "NotePad $REF_NAME" \
+            --generate-notes
