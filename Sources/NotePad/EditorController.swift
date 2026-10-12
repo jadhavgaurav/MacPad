@@ -106,6 +106,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
         self.formatted = formatted
         // Text typed from now on inherits the editor's font and line height, so new lines line up with the gutter.
         textView.typingAttributes = baseAttributes
+        textView.plainTextAttributes = baseAttributes
         if wrapChanged || fontChanged { applyWrap() }
         if fontChanged || formattedChanged { restyle() }
         // Font size, zoom and wrap change the line metrics the gutter reads, so redraw it once layout has settled.
@@ -147,6 +148,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
         guard let storage = textView.textStorage else { return }
         let full = NSRange(location: 0, length: storage.length)
         textView.typingAttributes = baseAttributes
+        textView.plainTextAttributes = baseAttributes
         isApplyingProgrammaticChange = true
         storage.beginEditing()
         storage.setAttributes(baseAttributes, range: full)

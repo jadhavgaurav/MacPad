@@ -16,6 +16,9 @@ final class PlainTextView: NSTextView {
     private(set) var carets: [NSRange] = []
     /// True while this view itself changes the selection or text, so those changes keep the extra carets.
     private var isUpdatingCarets = false
+    /// The plain style for text typed at several carets. Using the primary caret's typing attributes would give
+    /// every caret the primary's heading or bold style, and lines would jump in height until the next restyle.
+    var plainTextAttributes: [NSAttributedString.Key: Any]?
     /// One blinking indicator per extra empty caret. The primary uses NSTextView's own insertion point.
     private var indicators: [NSTextInsertionIndicator] = []
     /// The offset where a Shift-Option-drag column selection started. Nil when no column drag is in progress.
@@ -70,6 +73,16 @@ final class PlainTextView: NSTextView {
     /// Places one insertion indicator per extra empty caret and redraws the extra selection highlights.
     /// `active` overrides the focus check while first-responder status is changing.
     func refreshCaretDisplay(active: Bool? = nil) {
+        positionIndicators(active: active)
+        needsDisplay = true
+        // An edit lays out the changed lines lazily, so the positions are checked again once layout has run.
+        if hasExtraCarets {
+            DispatchQueue.main.async { [weak self] in self?.positionIndicators() }
+        }
+    }
+
+    /// Moves the indicators onto the extra empty carets, adding or removing indicators as needed.
+    private func positionIndicators(active: Bool? = nil) {
         let extras = hasExtraCarets ? Array(carets.dropLast()) : []
         let rects = extras.filter { $0.length == 0 }.compactMap(caretRect(for:))
         while indicators.count > rects.count { indicators.removeLast().removeFromSuperview() }
@@ -80,11 +93,19 @@ final class PlainTextView: NSTextView {
         }
         let isActive = active ?? (window?.isKeyWindow == true && window?.firstResponder === self)
         for (indicator, rect) in zip(indicators, rects) {
-            indicator.frame = rect
+            if indicator.frame != rect { indicator.frame = rect }
             indicator.color = insertionPointColor
             indicator.displayMode = isActive ? .automatic : .hidden
         }
-        needsDisplay = true
+    }
+
+    /// TextKit 2 lays text out lazily, after edits, restyling and scrolling. The indicators follow each pass.
+    /// NSTextView documents this delegate method from macOS 27, so super is only called where it exists.
+    override func textViewportLayoutControllerDidLayout(_ textViewportLayoutController: NSTextViewportLayoutController) {
+        if NSTextView.instancesRespond(to: #selector(textViewportLayoutControllerDidLayout(_:))) {
+            super.textViewportLayoutControllerDidLayout(textViewportLayoutController)
+        }
+        if hasExtraCarets { positionIndicators() }
     }
 
     /// NSTextView highlights only the primary selection, so the other non-empty selections are filled here,
@@ -117,12 +138,19 @@ final class PlainTextView: NSTextView {
         if hasExtraCarets { refreshCaretDisplay() }
     }
 
+    /// The caret's frame in view coordinates, taken from TextKit 2 after laying out its line, so it matches
+    /// styled text, wrapped lines and line spacing exactly as NSTextView draws its own caret.
     private func caretRect(for caret: NSRange) -> NSRect? {
-        guard let window else { return nil }
-        let screenRect = firstRect(forCharacterRange: caret, actualRange: nil)
-        guard screenRect != .zero else { return nil }
-        let local = convert(window.convertFromScreen(screenRect), from: nil)
-        return NSRect(x: local.minX, y: local.minY, width: 2, height: local.height)
+        guard let layout = textLayoutManager, let textRange = textRange(for: caret) else { return nil }
+        layout.ensureLayout(for: textRange)
+        var segment: NSRect?
+        layout.enumerateTextSegments(in: textRange, type: .selection, options: [.rangeNotRequired]) { _, frame, _, _ in
+            segment = frame
+            return false
+        }
+        guard let frame = segment else { return nil }
+        let origin = textContainerOrigin
+        return NSRect(x: frame.minX + origin.x, y: frame.minY + origin.y, width: 2, height: frame.height)
     }
 
     private func selectionRects(for range: NSRange) -> [NSRect] {
@@ -338,7 +366,8 @@ final class PlainTextView: NSTextView {
               let storage = textStorage else { return }
         storage.beginEditing()
         for change in edit.changes.reversed() {
-            storage.replaceCharacters(in: change.range, with: NSAttributedString(string: change.replacement, attributes: typingAttributes))
+            let attributes = plainTextAttributes ?? typingAttributes
+            storage.replaceCharacters(in: change.range, with: NSAttributedString(string: change.replacement, attributes: attributes))
         }
         storage.endEditing()
         didChangeText()
