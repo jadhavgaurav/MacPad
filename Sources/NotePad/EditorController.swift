@@ -75,8 +75,9 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.setAccessibilityLabel("Editor")
 
         scrollView.documentView = textView
-        scrollView.hasVerticalScroller = true
         scrollView.scrollerStyle = .overlay
+        scrollView.verticalScroller = SlimScroller()
+        scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
         scrollView.automaticallyAdjustsContentInsets = false
         scrollView.contentInsets = Self.barInsets
