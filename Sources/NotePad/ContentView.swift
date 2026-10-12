@@ -46,7 +46,8 @@ struct ContentView: View {
                     .padding(.trailing, doc.previewVisible ? 10 : 0)
                     if state.find.isVisible {
                         // Sits in the editor pane, below the tab and toolbar strip, so it never covers the preview or the wall.
-                        FindBarView(find: state.find)
+                        FloatingHost(content: FindBarView(find: state.find))
+                            .fixedSize()
                             .padding(.top, 64)
                             .padding(.trailing, doc.previewVisible ? 26 : 16)
                             .transition(.opacity.combined(with: .move(edge: .top)))
