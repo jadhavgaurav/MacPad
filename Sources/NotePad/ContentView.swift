@@ -62,14 +62,19 @@ struct ContentView: View {
                         .frame(minWidth: 240)
                 }
             }
+            .frame(maxWidth: state.focusMode ? 720 : .infinity)
         } else {
             Color(nsColor: .textBackgroundColor)
         }
     }
 
     private var overlays: some View {
+        overlayStack.animation(.easeOut(duration: 0.15), value: state.focusMode)
+    }
+
+    private var overlayStack: some View {
         ZStack {
-            VStack(spacing: 8) {
+            if !state.focusMode { VStack(spacing: 8) {
                 GlassGroup(spacing: 10) {
                     HStack(spacing: 10) {
                         TabBarView(state: state).padding(.leading, state.isFullScreen ? 0 : 74)
@@ -86,13 +91,13 @@ struct ContentView: View {
                     DiskNoticeView(state: state, doc: doc, status: status)
                 }
                 if let notice = state.notice { NoticeView(text: notice) }
-                if state.find.isVisible {
-                }
                 Spacer(minLength: 0)
-            }
-            VStack {
-                Spacer()
-                StatusBarView(state: state).padding(.bottom, 12)
+            } }
+            if !state.focusMode {
+                VStack {
+                    Spacer()
+                    StatusBarView(state: state).padding(.bottom, 12)
+                }
             }
         }
     }

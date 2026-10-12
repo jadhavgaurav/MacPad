@@ -35,4 +35,11 @@ import Testing
         #expect(stats.words == 0)
         #expect(stats.charactersWithoutSpaces == 0)
     }
+
+    @Test func readingTimeRoundsUp() {
+        #expect(TextStats.readingMinutes(words: 0) == 0)
+        #expect(TextStats.readingMinutes(words: 1) == 1)
+        #expect(TextStats.readingMinutes(words: 238) == 1)
+        #expect(TextStats.readingMinutes(words: 239) == 2)
+    }
 }

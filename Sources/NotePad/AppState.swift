@@ -21,6 +21,8 @@ final class AppState {
     /// The traffic lights are hidden in full screen, so the tab strip doesn't need to clear them.
     var isFullScreen = false
     var recoveryVisible = false
+    /// Hides the tab strip, toolbar and footer, and centres the text in a narrower column.
+    var focusMode = false
     /// Shown in the footer toggle. Remembered between launches.
     var showLineNumbers = UserDefaults.standard.bool(forKey: SettingsKey.showLineNumbers) {
         didSet { UserDefaults.standard.set(showLineNumbers, forKey: SettingsKey.showLineNumbers) }
@@ -394,6 +396,8 @@ final class AppState {
     // MARK: View commands
 
     func format(_ command: MarkdownCommand) { activeEditor?.apply(command) }
+
+    func toggleFocusMode() { focusMode.toggle() }
 
     /// Exports the active Markdown tab. Plain text is exported as Markdown, which renders as plain paragraphs.
     func exportActive(asPDF: Bool) {

@@ -21,6 +21,7 @@ struct StatusBarView: View {
                 separator
                 cell("\(prefix)Lines \(counts.lines.formatted())")
                 cell("\(prefix)Words \(counts.words.formatted())")
+                cell("\(TextStats.readingMinutes(words: counts.words)) min read")
                 cell("\(prefix)Chars \(counts.characters.formatted())")
                 cell("\(prefix)No spaces \(counts.charactersWithoutSpaces.formatted())")
                 separator

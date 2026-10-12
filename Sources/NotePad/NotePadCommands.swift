@@ -59,6 +59,8 @@ struct NotePadCommands: Commands {
             Button("Toggle Word Wrap") { state.toggleWordWrap() }.keyboardShortcut("w", modifiers: [.command, .option])
             Button("Toggle Formatted View") { state.toggleFormattedView() }.keyboardShortcut("f", modifiers: [.command, .shift])
             Button("Toggle Markdown Preview") { state.togglePreview() }.keyboardShortcut("p", modifiers: [.command, .shift])
+            Button(state.focusMode ? "Exit Focus Mode" : "Focus Mode") { state.toggleFocusMode() }
+                .keyboardShortcut(.return, modifiers: [.command, .shift])
             Button(state.showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers") { state.showLineNumbers.toggle() }
                 .keyboardShortcut("l", modifiers: [.command, .option])
         }

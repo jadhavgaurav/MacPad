@@ -9,6 +9,15 @@ public struct TextStats: Equatable, Sendable {
 
     public static let empty = TextStats(lines: 0, words: 0, characters: 0, charactersWithoutSpaces: 0)
 
+    /// Average adult silent reading speed, used for the reading-time estimate.
+    public static let wordsPerMinute = 238
+
+    /// Whole minutes to read this many words, rounded up. Zero words is zero minutes; any words is at least one minute.
+    public static func readingMinutes(words: Int) -> Int {
+        guard words > 0 else { return 0 }
+        return (words + wordsPerMinute - 1) / wordsPerMinute
+    }
+
     public init(lines: Int, words: Int, characters: Int, charactersWithoutSpaces: Int) {
         self.lines = lines
         self.words = words
