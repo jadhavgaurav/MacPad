@@ -17,7 +17,8 @@ final class AppState {
     var notice: String?
     var diskStatus: [UUID: DiskStatus] = [:]
     var gotoVisible = false
-    var previewFraction = 0.0
+    /// The 1-based source line at the top of the editor, which the preview follows.
+    var previewLine = 1
     /// The traffic lights are hidden in full screen, so the tab strip doesn't need to clear them.
     var isFullScreen = false
     var recoveryVisible = false
@@ -31,6 +32,8 @@ final class AppState {
     let stats = StatsModel()
     let snippets = SnippetLibrary()
 
+    /// True while the editor is scrolling to follow the preview, so that scroll is not reported back.
+    @ObservationIgnored var isFollowingPreview = false
     @ObservationIgnored private var coordinator: SessionCoordinator?
     @ObservationIgnored private var sessionStore: SessionStore?
     @ObservationIgnored private var editors: [UUID: EditorController] = [:]
@@ -106,9 +109,9 @@ final class AppState {
             doc.adjustZoom(by: factor)
             self?.persist(doc)
         }
-        controller.onScroll = { [weak self] doc, fraction in
+        controller.onScroll = { [weak self] doc, topLine in
             guard let self else { return }
-            if doc.id == self.activeID { self.previewFraction = fraction }
+            self.editorScrolled(doc, topLine: topLine)
             self.persist(doc)
         }
         editors[doc.id] = controller
@@ -151,6 +154,7 @@ final class AppState {
         persistManifest()
         find.refresh()
         refreshStats(textChanged: true)
+        syncPreviewToActiveTab()
         activeEditor?.focus()
     }
 

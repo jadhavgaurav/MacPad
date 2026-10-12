@@ -31,20 +31,30 @@ private struct HTMLVisitor: MarkupVisitor {
         return out
     }
 
-    mutating func visitHeading(_ heading: Heading) -> String {
-        "<h\(heading.level)>\(renderChildren(of: heading))</h\(heading.level)>\n"
+    /// Marks a block with its 1-based source line, so the preview can line up with the editor.
+    func lineAttribute(_ markup: Markup) -> String {
+        guard let line = markup.range?.lowerBound.line else { return "" }
+        return " data-line=\"\(line)\""
     }
-    mutating func visitParagraph(_ paragraph: Paragraph) -> String { "<p>\(renderChildren(of: paragraph))</p>\n" }
+
+    mutating func visitHeading(_ heading: Heading) -> String {
+        "<h\(heading.level)\(lineAttribute(heading))>\(renderChildren(of: heading))</h\(heading.level)>\n"
+    }
+    mutating func visitParagraph(_ paragraph: Paragraph) -> String {
+        "<p\(lineAttribute(paragraph))>\(renderChildren(of: paragraph))</p>\n"
+    }
     mutating func visitText(_ text: Text) -> String { MarkdownHTML.escape(text.string) }
     mutating func visitEmphasis(_ emphasis: Emphasis) -> String { "<em>\(renderChildren(of: emphasis))</em>" }
     mutating func visitStrong(_ strong: Strong) -> String { "<strong>\(renderChildren(of: strong))</strong>" }
     mutating func visitStrikethrough(_ s: Strikethrough) -> String { "<del>\(renderChildren(of: s))</del>" }
     mutating func visitInlineCode(_ code: InlineCode) -> String { "<code>\(MarkdownHTML.escape(code.code))</code>" }
     mutating func visitCodeBlock(_ block: CodeBlock) -> String {
-        "<pre><code>\(MarkdownHTML.escape(block.code))</code></pre>\n"
+        "<pre\(lineAttribute(block))><code>\(MarkdownHTML.escape(block.code))</code></pre>\n"
     }
-    mutating func visitBlockQuote(_ quote: BlockQuote) -> String { "<blockquote>\(renderChildren(of: quote))</blockquote>\n" }
-    mutating func visitThematicBreak(_ rule: ThematicBreak) -> String { "<hr>\n" }
+    mutating func visitBlockQuote(_ quote: BlockQuote) -> String {
+        "<blockquote\(lineAttribute(quote))>\(renderChildren(of: quote))</blockquote>\n"
+    }
+    mutating func visitThematicBreak(_ rule: ThematicBreak) -> String { "<hr\(lineAttribute(rule))>\n" }
     mutating func visitSoftBreak(_ softBreak: SoftBreak) -> String { "\n" }
     mutating func visitLineBreak(_ lineBreak: LineBreak) -> String { "<br>\n" }
     mutating func visitUnorderedList(_ list: UnorderedList) -> String { "<ul>\n\(renderChildren(of: list))</ul>\n" }
@@ -58,7 +68,7 @@ private struct HTMLVisitor: MarkupVisitor {
         for child in item.children {
             if let paragraph = child as? Paragraph { body += renderChildren(of: paragraph) } else { body += visit(child) }
         }
-        return "<li>\(box)\(body)</li>\n"
+        return "<li\(lineAttribute(item))>\(box)\(body)</li>\n"
     }
     mutating func visitLink(_ link: Link) -> String {
         let inner = renderChildren(of: link)
@@ -70,7 +80,7 @@ private struct HTMLVisitor: MarkupVisitor {
     mutating func visitInlineHTML(_ html: InlineHTML) -> String { MarkdownHTML.escape(html.rawHTML) }
 
     mutating func visitTable(_ table: Markdown.Table) -> String {
-        var out = "<table>\n<thead><tr>"
+        var out = "<table\(lineAttribute(table))>\n<thead><tr>"
         for cell in table.head.cells { out += "<th>\(renderChildren(of: cell))</th>" }
         out += "</tr></thead>\n<tbody>\n"
         for row in table.body.rows {

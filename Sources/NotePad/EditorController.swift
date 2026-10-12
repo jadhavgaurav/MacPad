@@ -31,7 +31,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
     var onEdit: ((TextDocument) -> Void)?
     var onSelectionChange: ((TextDocument) -> Void)?
-    var onScroll: ((TextDocument, Double) -> Void)?
+    var onScroll: ((TextDocument, Int) -> Void)?
     /// Called with a zoom factor when the user zooms with Command + scroll.
     var onZoom: ((CGFloat) -> Void)?
 
@@ -287,12 +287,26 @@ final class EditorController: NSObject, NSTextViewDelegate {
         }
     }
 
-    var scrollFraction: Double {
-        let inset = Self.barInsets
-        let visible = scrollView.contentView.bounds.height
-        let travel = max(textView.frame.height + inset.top + inset.bottom - visible, 1)
-        let offset = scrollView.contentView.bounds.origin.y + inset.top
-        return min(max(offset / travel, 0), 1)
+    /// The 1-based line at the top of the visible text, below the toolbar strip.
+    var topVisibleLine: Int {
+        guard let layout = textView.textLayoutManager,
+              let content = layout.textContentManager as? NSTextContentStorage,
+              let viewport = layout.textViewportLayoutController.viewportRange else { return 1 }
+        let index = content.offset(from: content.documentRange.location, to: viewport.location)
+        return LineLocator.position(at: index, in: textView.string).line
+    }
+
+    /// Scrolls so that `line` sits at the top of the visible text. The caret and selection do not move.
+    func scrollToLine(_ line: Int) {
+        guard let range = LineLocator.range(ofLine: line, in: textView.string),
+              let layout = textView.textLayoutManager,
+              let content = layout.textContentManager as? NSTextContentStorage,
+              let location = content.location(content.documentRange.location, offsetBy: range.location),
+              let fragment = layout.textLayoutFragment(for: location) else { return }
+        let clip = scrollView.contentView
+        let y = textView.textContainerOrigin.y + fragment.layoutFragmentFrame.minY - Self.barInsets.top
+        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+        scrollView.reflectScrolledClipView(clip)
     }
 
     // MARK: NSTextViewDelegate
@@ -323,6 +337,6 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
     @objc private func boundsChanged() {
         document.scrollOffsetY = scrollView.contentView.bounds.origin.y + Self.barInsets.top
-        onScroll?(document, scrollFraction)
+        onScroll?(document, topVisibleLine)
     }
 }

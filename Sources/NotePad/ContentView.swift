@@ -58,7 +58,12 @@ struct ContentView: View {
                 }
                 if doc.previewVisible {
                     Divider()
-                    MarkdownPreviewView(markdown: doc.text, scrollFraction: state.previewFraction)
+                    MarkdownPreviewView(
+                        markdown: doc.text,
+                        scrollLine: state.previewLine,
+                        onScroll: { state.previewScrolled($0) },
+                        onHeading: { _ = state.goTo(line: $0) }
+                    )
                         .frame(minWidth: 240)
                 }
             }

@@ -2,13 +2,16 @@ import Foundation
 
 /// A complete HTML page for rendered Markdown. The preview and exported files use the same stylesheet.
 public enum MarkdownPage {
-    public static func document(body: String, title: String = "") -> String {
+    /// `script` is added only for the live preview. Exported pages never run script.
+    public static func document(body: String, title: String = "", script: String? = nil) -> String {
         let heading = title.isEmpty ? "" : "<title>\(MarkdownHTML.escape(title))</title>"
+        let scriptPolicy = script == nil ? "" : "; script-src 'unsafe-inline'"
+        let scriptTag = script.map { "<script>\($0)</script>" } ?? ""
         return """
         <!doctype html><html><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         \(heading)
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'\(scriptPolicy)">
         <style>
         :root { color-scheme: light dark; }
         body { font: 14px/1.65 -apple-system, system-ui, sans-serif; margin: 0; padding: 64px 36px 72px;
@@ -24,7 +27,7 @@ public enum MarkdownPage {
         blockquote { border-left: 3px solid rgba(127,127,127,.4); padding-left: 14px; color: GrayText; margin-left: 0; }
         table { border-collapse: collapse; } th, td { border: 1px solid rgba(127,127,127,.3); padding: 6px 10px; }
         hr { border: 0; border-top: 1px solid rgba(127,127,127,.3); margin: 20px 0; }
-        </style></head><body>\(body)</body></html>
+        </style></head><body>\(body)\(scriptTag)</body></html>
         """
     }
 }

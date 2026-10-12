@@ -1,17 +1,23 @@
 import AppKit
 import MarkdownRendering
+import NotePadCore
 import SwiftUI
 import WebKit
 
 struct MarkdownPreviewView: NSViewRepresentable {
     let markdown: String
-    let scrollFraction: Double
+    /// The source line the preview should show at its top.
+    let scrollLine: Int
+    let onScroll: (Int) -> Void
+    let onHeading: (Int) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = false
+        // Scripts run only from PreviewScript, which is embedded in the page. Raw HTML in the Markdown is escaped.
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.userContentController.add(context.coordinator, name: PreviewScript.handlerName)
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
         view.setValue(false, forKey: "drawsBackground")
@@ -20,16 +26,25 @@ struct MarkdownPreviewView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
-        context.coordinator.update(view, markdown: markdown, scrollFraction: scrollFraction)
+        context.coordinator.onScroll = onScroll
+        context.coordinator.onHeading = onHeading
+        context.coordinator.update(view, markdown: markdown, scrollLine: scrollLine)
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
+        view.configuration.userContentController.removeScriptMessageHandler(forName: PreviewScript.handlerName)
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var onScroll: (Int) -> Void = { _ in }
+        var onHeading: (Int) -> Void = { _ in }
         private var lastMarkdown: String?
         private var renderTask: Task<Void, Never>?
-        private var fraction = 0.0
+        private var line = 1
 
-        func update(_ view: WKWebView, markdown: String, scrollFraction: Double) {
-            fraction = scrollFraction
+        func update(_ view: WKWebView, markdown: String, scrollLine: Int) {
+            line = scrollLine
             if markdown != lastMarkdown {
                 lastMarkdown = markdown
                 renderTask?.cancel()
@@ -44,11 +59,19 @@ struct MarkdownPreviewView: NSViewRepresentable {
         }
 
         private func scroll(_ view: WKWebView) {
-            let script = "window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) * \(fraction));"
-            view.evaluateJavaScript(script, completionHandler: nil)
+            view.evaluateJavaScript("window.notepadScrollToLine && window.notepadScrollToLine(\(line));", completionHandler: nil)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { scroll(webView) }
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? [String: Any], let value = body["line"] as? NSNumber else { return }
+            switch body["type"] as? String {
+            case "scroll": onScroll(value.intValue)
+            case "heading": onHeading(value.intValue)
+            default: break
+            }
+        }
 
         func webView(
             _ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
@@ -66,6 +89,6 @@ struct MarkdownPreviewView: NSViewRepresentable {
 
 enum PreviewHTML {
     static func page(body: String) -> String {
-        MarkdownPage.document(body: body)
+        MarkdownPage.document(body: body, script: PreviewScript.source)
     }
 }

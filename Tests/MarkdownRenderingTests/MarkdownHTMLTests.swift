@@ -4,13 +4,13 @@ import Testing
 @Suite struct MarkdownHTMLTests {
     @Test func rendersHeadingAndParagraph() {
         let html = MarkdownHTML.render("# Title\n\nHello **world**.")
-        #expect(html.contains("<h1>Title</h1>"))
-        #expect(html.contains("<p>Hello <strong>world</strong>.</p>"))
+        #expect(html.contains("<h1 data-line=\"1\">Title</h1>"))
+        #expect(html.contains("<p data-line=\"3\">Hello <strong>world</strong>.</p>"))
     }
     @Test func rendersLists() {
         let html = MarkdownHTML.render("- one\n- two\n\n1. a\n2. b")
         #expect(html.contains("<ul>"))
-        #expect(html.contains("<li>one</li>"))
+        #expect(html.contains("<li data-line=\"1\">one</li>"))
         #expect(html.contains("<ol>"))
     }
     @Test func escapesRawHTML() {
@@ -30,7 +30,7 @@ import Testing
     }
     @Test func rendersCodeBlockEscaped() {
         let html = MarkdownHTML.render("```\na < b\n```")
-        #expect(html.contains("<pre><code>a &lt; b"))
+        #expect(html.contains("<pre data-line=\"1\"><code>a &lt; b"))
     }
     @Test func rendersTable() {
         let html = MarkdownHTML.render("| a | b |\n|---|---|\n| 1 | 2 |")
