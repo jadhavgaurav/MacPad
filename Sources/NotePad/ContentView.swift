@@ -32,17 +32,26 @@ struct ContentView: View {
     @ViewBuilder private var editorArea: some View {
         if let doc = state.activeDocument {
             HStack(spacing: 0) {
-                EditorHost(
-                    controller: state.controller(for: doc),
-                    settings: settings,
-                    zoom: doc.zoom,
-                    wrap: doc.usesWordWrap(default: wrapByDefault),
-                    formatted: doc.usesFormattedView(formatAllText: formatAllText),
-                    showLineNumbers: state.showLineNumbers
-                )
-                .id(doc.id)
-                // Keeps the editor's scroll bar clear of the preview divider.
-                .padding(.trailing, doc.previewVisible ? 10 : 0)
+                ZStack(alignment: .topTrailing) {
+                    EditorHost(
+                        controller: state.controller(for: doc),
+                        settings: settings,
+                        zoom: doc.zoom,
+                        wrap: doc.usesWordWrap(default: wrapByDefault),
+                        formatted: doc.usesFormattedView(formatAllText: formatAllText),
+                        showLineNumbers: state.showLineNumbers
+                    )
+                    .id(doc.id)
+                    // Keeps the editor's scroll bar clear of the preview divider.
+                    .padding(.trailing, doc.previewVisible ? 10 : 0)
+                    if state.find.isVisible {
+                        // Sits in the editor pane, below the tab and toolbar strip, so it never covers the preview or the wall.
+                        FindBarView(find: state.find)
+                            .padding(.top, 64)
+                            .padding(.trailing, doc.previewVisible ? 26 : 16)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
                 if doc.previewVisible {
                     Divider()
                     MarkdownPreviewView(markdown: doc.text, scrollFraction: state.previewFraction)
@@ -52,11 +61,6 @@ struct ContentView: View {
         } else {
             Color(nsColor: .textBackgroundColor)
         }
-    }
-
-    /// With the preview open, the find bar sits over the editor pane so it never covers the rendered text.
-    private var findBarAlignment: Alignment {
-        state.activeDocument?.previewVisible == true ? .leading : .trailing
     }
 
     private var overlays: some View {
@@ -76,10 +80,6 @@ struct ContentView: View {
                 }
                 if let notice = state.notice { NoticeView(text: notice) }
                 if state.find.isVisible {
-                    FindBarView(find: state.find)
-                        .frame(maxWidth: .infinity, alignment: findBarAlignment)
-                        .padding(.horizontal, 16)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 Spacer(minLength: 0)
             }

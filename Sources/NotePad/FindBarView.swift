@@ -61,9 +61,10 @@ struct FindBarView: View {
         .onAppear { claimFocus() }
     }
 
-    /// The bar is inserted with a transition, so the field can only take focus on the next run-loop turn.
+    /// The bar is inserted with a transition and the window may still be settling, so the field
+    /// claims focus after a short delay, once it is in the view tree.
     private func claimFocus() {
-        DispatchQueue.main.async { focused = .query }
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(60)) { focused = .query }
     }
 
     private func toggle(_ label: String, help: String, isOn: Binding<Bool>) -> some View {
