@@ -157,6 +157,8 @@ final class EditorController: NSObject, NSTextViewDelegate {
         }
         storage.endEditing()
         isApplyingProgrammaticChange = false
+        // Styling can change glyph widths, so the extra carets move with it.
+        if textView.hasExtraCarets { textView.refreshCaretDisplay() }
     }
 
     private func scheduleRestyle() {

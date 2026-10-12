@@ -2,14 +2,29 @@ import Foundation
 
 /// Pure text logic for multiple selections. Every range is in UTF-16 units, the unit NSTextView uses.
 public enum MultiCursor {
+    /// One replacement inside an edit, in the coordinates of the text before the edit.
+    public struct Change: Equatable, Sendable {
+        public let range: NSRange
+        public let replacement: String
+
+        public init(range: NSRange, replacement: String) {
+            self.range = range
+            self.replacement = replacement
+        }
+    }
+
     /// The text after an edit, plus the caret or selection ranges to restore.
     public struct Edit: Equatable, Sendable {
         public let text: String
         public let selections: [NSRange]
+        /// The replacements that actually change the text, in position order. Each one can be applied on
+        /// its own, last to first, so text between the carets is never rewritten.
+        public let changes: [Change]
 
-        public init(text: String, selections: [NSRange]) {
+        public init(text: String, selections: [NSRange], changes: [Change] = []) {
             self.text = text
             self.selections = selections
+            self.changes = changes
         }
     }
 
@@ -115,55 +130,88 @@ public enum MultiCursor {
         return selections + [caret]
     }
 
+    /// Sorts the ranges and merges any that overlap or repeat. The range holding the primary (the range at
+    /// index `primary` of the input) is moved to the end, so callers can treat the last range as the primary.
+    public static func normalized(_ ranges: [NSRange], primary: Int) -> [NSRange] {
+        guard !ranges.isEmpty else { return [] }
+        let primaryRange = ranges[min(max(primary, 0), ranges.count - 1)]
+        var merged: [NSRange] = []
+        for range in ranges.sorted(by: { ($0.location, $0.length) < ($1.location, $1.length) }) {
+            if let last = merged.last, range == last || range.location < NSMaxRange(last) {
+                merged[merged.count - 1] = NSUnionRange(last, range)
+            } else {
+                merged.append(range)
+            }
+        }
+        let primaryIndex = merged.firstIndex {
+            $0.location <= primaryRange.location && NSMaxRange(primaryRange) <= NSMaxRange($0)
+        } ?? merged.count - 1
+        let primaryMerged = merged.remove(at: primaryIndex)
+        return merged + [primaryMerged]
+    }
+
     /// Inserts `string` at every range. A range that is not empty is replaced.
     public static func insert(_ string: String, at ranges: [NSRange], in text: String) -> Edit {
-        edit(text, replacing: ranges.map { ($0, string) })
+        replace(ranges.map { ($0, string) }, in: text)
     }
 
-    /// Backspace at every range. A range that is not empty is deleted. An empty range deletes the character before it.
+    /// Backspace at every range. A range that is not empty is deleted. An empty range deletes the whole
+    /// character before it, so emoji and combined characters are never split.
     public static func deleteBackward(at ranges: [NSRange], in text: String) -> Edit {
-        edit(text, replacing: ranges.map { range in
-            if range.length > 0 { return (range, "") }
-            if range.location == 0 { return (range, "") }
-            return (NSRange(location: range.location - 1, length: 1), "")
-        })
-    }
-
-    /// Forward Delete at every range. A range that is not empty is deleted. An empty range deletes the character after it.
-    public static func deleteForward(at ranges: [NSRange], in text: String) -> Edit {
-        let length = (text as NSString).length
-        return edit(text, replacing: ranges.map { range in
-            if range.length > 0 { return (range, "") }
-            if range.location >= length { return (range, "") }
-            return (NSRange(location: range.location, length: 1), "")
-        })
-    }
-
-    /// Replaces each span and returns the new text. Each caret ends after its replacement.
-    /// Spans that overlap or repeat are dropped, keeping the first one.
-    static func edit(_ text: String, replacing spans: [(range: NSRange, with: String)]) -> Edit {
         let ns = text as NSString
-        var ordered: [(range: NSRange, with: String)] = []
-        for span in spans.sorted(by: { $0.range.location < $1.range.location }) {
-            guard NSMaxRange(span.range) <= ns.length else { continue }
-            if let last = ordered.last, span.range == last.range || span.range.location < NSMaxRange(last.range) { continue }
-            ordered.append(span)
+        return replace(ranges.map { range in
+            if range.length > 0 || range.location == 0 { return (range, "") }
+            return (ns.rangeOfComposedCharacterSequence(at: range.location - 1), "")
+        }, in: text)
+    }
+
+    /// Forward Delete at every range. A range that is not empty is deleted. An empty range deletes the whole
+    /// character after it.
+    public static func deleteForward(at ranges: [NSRange], in text: String) -> Edit {
+        let ns = text as NSString
+        return replace(ranges.map { range in
+            if range.length > 0 || range.location >= ns.length { return (range, "") }
+            return (ns.rangeOfComposedCharacterSequence(at: range.location), "")
+        }, in: text)
+    }
+
+    /// Replaces each span and returns the new text. Each caret ends after its replacement. The carets come
+    /// back in the same order as the spans, so the primary keeps its place. A span that overlaps or repeats
+    /// an earlier one (by position) is dropped, and so is its caret.
+    public static func replace(_ spans: [(range: NSRange, with: String)], in text: String) -> Edit {
+        let ns = text as NSString
+        let byPosition = spans.indices.sorted {
+            (spans[$0].range.location, spans[$0].range.length) < (spans[$1].range.location, spans[$1].range.length)
+        }
+        var kept: [Int] = []
+        for index in byPosition {
+            let range = spans[index].range
+            guard NSMaxRange(range) <= ns.length else { continue }
+            if let last = kept.last {
+                let previous = spans[last].range
+                if range == previous || range.location < NSMaxRange(previous) { continue }
+            }
+            kept.append(index)
         }
 
         let result = NSMutableString(string: text)
-        for span in ordered.reversed() {
-            result.replaceCharacters(in: span.range, with: span.with)
+        for index in kept.reversed() {
+            result.replaceCharacters(in: spans[index].range, with: spans[index].with)
         }
 
         var shift = 0
-        var selections: [NSRange] = []
-        for span in ordered {
-            let length = (span.with as NSString).length
-            let caret = span.range.location + shift + length
-            selections.append(NSRange(location: caret, length: 0))
-            shift += length - span.range.length
+        var caretForSpan: [Int: NSRange] = [:]
+        for index in kept {
+            let length = (spans[index].with as NSString).length
+            caretForSpan[index] = NSRange(location: spans[index].range.location + shift + length, length: 0)
+            shift += length - spans[index].range.length
         }
-        return Edit(text: result as String, selections: selections)
+        let changes = kept.compactMap { index -> Change? in
+            let span = spans[index]
+            guard span.range.length > 0 || !span.with.isEmpty else { return nil }
+            return Change(range: span.range, replacement: span.with)
+        }
+        return Edit(text: result as String, selections: spans.indices.compactMap { caretForSpan[$0] }, changes: changes)
     }
 
     /// The length of a line without its line break.

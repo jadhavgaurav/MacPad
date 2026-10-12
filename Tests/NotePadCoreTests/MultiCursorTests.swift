@@ -85,6 +85,34 @@ import Testing
         #expect(edit.text == "abc")
     }
 
+    @Test func backspaceRemovesAWholeEmoji() {
+        let text = "a😀\nb😀\n"
+        let edit = MultiCursor.deleteBackward(at: [NSRange(location: 3, length: 0), NSRange(location: 7, length: 0)], in: text)
+        #expect(edit.text == "a\nb\n")
+        #expect(edit.selections == [NSRange(location: 1, length: 0), NSRange(location: 3, length: 0)])
+    }
+
+    @Test func forwardDeleteRemovesAWholeEmoji() {
+        let edit = MultiCursor.deleteForward(at: [NSRange(location: 1, length: 0)], in: "a😀b")
+        #expect(edit.text == "ab")
+    }
+
+    @Test func replaceReturnsCaretsInTheOrderOfTheSpans() {
+        let edit = MultiCursor.replace([(NSRange(location: 4, length: 0), "x"), (NSRange(location: 0, length: 0), "y")], in: "abcdef")
+        #expect(edit.text == "yabcdxef")
+        #expect(edit.selections == [NSRange(location: 6, length: 0), NSRange(location: 1, length: 0)])
+    }
+
+    @Test func changesListOnlyRealReplacementsInPositionOrder() {
+        let edit = MultiCursor.deleteBackward(
+            at: [NSRange(location: 5, length: 0), NSRange(location: 0, length: 0), NSRange(location: 2, length: 0)], in: "abcdef"
+        )
+        #expect(edit.changes == [
+            MultiCursor.Change(range: NSRange(location: 1, length: 1), replacement: ""),
+            MultiCursor.Change(range: NSRange(location: 4, length: 1), replacement: ""),
+        ])
+    }
+
     @Test func backspaceAtTheStartChangesNothing() {
         let edit = MultiCursor.deleteBackward(at: [NSRange(location: 0, length: 0)], in: "abc")
         #expect(edit.text == "abc")
@@ -142,5 +170,20 @@ import Testing
     @Test func lastCaretIsNeverRemoved() {
         let start = [NSRange(location: 3, length: 0)]
         #expect(MultiCursor.togglingCaret(at: 3, in: start) == start)
+    }
+}
+
+@Suite struct MultiCursorNormalizeTests {
+    @Test func mergesOverlapsAndPutsThePrimaryLast() {
+        let ranges = [
+            NSRange(location: 8, length: 0), NSRange(location: 0, length: 3),
+            NSRange(location: 2, length: 2), NSRange(location: 8, length: 0),
+        ]
+        #expect(MultiCursor.normalized(ranges, primary: 0) == [NSRange(location: 0, length: 4), NSRange(location: 8, length: 0)])
+        #expect(MultiCursor.normalized(ranges, primary: 1) == [NSRange(location: 8, length: 0), NSRange(location: 0, length: 4)])
+    }
+
+    @Test func emptyInputStaysEmpty() {
+        #expect(MultiCursor.normalized([], primary: 0).isEmpty)
     }
 }
