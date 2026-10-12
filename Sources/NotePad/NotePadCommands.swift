@@ -24,6 +24,8 @@ struct NotePadCommands: Commands {
         }
         CommandGroup(after: .textEditing) {
             Divider()
+            Button("Add Next Occurrence") { state.activeEditor?.addNextOccurrence() }.keyboardShortcut("d")
+            Divider()
             Button("Find\u{2026}") { state.find.show(replace: false) }.keyboardShortcut("f")
             Button("Find and Replace\u{2026}") { state.find.show(replace: true) }
                 .keyboardShortcut("f", modifiers: [.command, .option])

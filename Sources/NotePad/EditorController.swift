@@ -9,6 +9,104 @@ final class PlainTextView: NSTextView {
 
     override func paste(_ sender: Any?) { pasteAsPlainText(sender) }
 
+    /// The offset where an Option-drag column selection started. Nil when no column drag is in progress.
+    private var columnAnchor: Int?
+
+    private var currentRanges: [NSRange] { selectedRanges.map { $0.rangeValue } }
+
+    override func mouseDown(with event: NSEvent) {
+        guard event.modifierFlags.contains(.option), event.clickCount == 1 else {
+            super.mouseDown(with: event)
+            return
+        }
+        let anchor = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
+        columnAnchor = anchor
+        setSelectedRange(NSRange(location: anchor, length: 0))
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let anchor = columnAnchor else {
+            super.mouseDragged(with: event)
+            return
+        }
+        let head = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
+        let ranges = MultiCursor.columnSelection(anchor: anchor, head: head, in: string)
+        setSelectedRanges(ranges.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if columnAnchor != nil {
+            columnAnchor = nil
+            return
+        }
+        super.mouseUp(with: event)
+    }
+
+    /// Typing replaces every selection, so one keystroke edits each caret.
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        guard selectedRanges.count > 1, let text = string as? String else {
+            super.insertText(string, replacementRange: replacementRange)
+            return
+        }
+        applyMultiEdit(MultiCursor.insert(text, at: currentRanges, in: self.string))
+    }
+
+    override func insertNewline(_ sender: Any?) {
+        guard selectedRanges.count > 1 else {
+            super.insertNewline(sender)
+            return
+        }
+        applyMultiEdit(MultiCursor.insert("\n", at: currentRanges, in: string))
+    }
+
+    override func deleteBackward(_ sender: Any?) {
+        guard selectedRanges.count > 1 else {
+            super.deleteBackward(sender)
+            return
+        }
+        applyMultiEdit(MultiCursor.deleteBackward(at: currentRanges, in: string))
+    }
+
+    /// Escape drops back to a single caret, placed at the most recent selection.
+    override func cancelOperation(_ sender: Any?) {
+        guard selectedRanges.count > 1, let last = currentRanges.last else {
+            super.cancelOperation(sender)
+            return
+        }
+        setSelectedRange(NSRange(location: NSMaxRange(last), length: 0))
+    }
+
+    /// Applies a multi-cursor edit as one undo step and restores every caret.
+    private func applyMultiEdit(_ edit: MultiCursor.Edit) {
+        let change = MinimalEdit(from: string, to: edit.text)
+        if !change.isNoOp, shouldChangeText(in: change.range, replacementString: change.replacement) {
+            textStorage?.replaceCharacters(in: change.range, with: change.replacement)
+            didChangeText()
+        }
+        setSelectedRanges(edit.selections.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+    }
+
+    /// Adds the next match of the current selection. With only carets, it first selects the word at the caret.
+    func addNextOccurrence() {
+        let ranges = currentRanges
+        guard ranges.contains(where: { $0.length > 0 }) else {
+            guard let caret = ranges.last else { return }
+            let word = selectionRange(forProposedRange: caret, granularity: .selectByWord)
+            guard word.length > 0 else {
+                NSSound.beep()
+                return
+            }
+            setSelectedRange(word)
+            return
+        }
+        guard let next = MultiCursor.nextOccurrence(in: string, selections: ranges) else {
+            NSSound.beep()
+            return
+        }
+        setSelectedRanges((ranges + [next]).map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        scrollRangeToVisible(next)
+    }
+
     override func scrollWheel(with event: NSEvent) {
         guard event.modifierFlags.contains(.command), let onCommandScroll else {
             super.scrollWheel(with: event)
@@ -225,6 +323,11 @@ final class EditorController: NSObject, NSTextViewDelegate {
     // MARK: Commands
 
     func focus() { textView.window?.makeFirstResponder(textView) }
+
+    func addNextOccurrence() {
+        textView.addNextOccurrence()
+        focus()
+    }
 
     func apply(_ command: MarkdownCommand) {
         let result = MarkdownFormatter.apply(command, to: textView.string, selection: textView.selectedRange())
