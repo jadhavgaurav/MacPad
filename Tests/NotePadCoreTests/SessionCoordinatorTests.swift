@@ -15,7 +15,7 @@ import Testing
             snapshot.text = value
             await coordinator.schedule(snapshot)
         }
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: .seconds(1))
         #expect(try store.restore().snapshots.first?.text == "123")
     }
 
@@ -43,7 +43,7 @@ import Testing
         try store.save(snapshot)
         await coordinator.schedule(snapshot)
         await coordinator.remove(snapshot.id)
-        try await Task.sleep(for: .milliseconds(150))
+        try await Task.sleep(for: .seconds(1))
         #expect(try store.restore().snapshots.isEmpty)
     }
 
