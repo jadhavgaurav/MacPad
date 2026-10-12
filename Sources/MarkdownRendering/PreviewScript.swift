@@ -10,7 +10,9 @@ public enum PreviewScript {
     (function () {
       // The editor's scroll bar is the one that shows position. Hiding the preview's keeps the two from disagreeing.
       var hideScrollbar = document.createElement('style');
-      hideScrollbar.textContent = 'html { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }';
+      hideScrollbar.textContent = 'html { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }'
+        + ' mark.notepad-find { background: rgba(255, 214, 0, 0.45); color: inherit; border-radius: 3px; }'
+        + ' mark.notepad-current { background: rgba(255, 140, 0, 0.8); }';
       document.head.appendChild(hideScrollbar);
 
       var lineOf = function (el) { return +el.getAttribute('data-line'); };
@@ -79,6 +81,48 @@ public enum PreviewScript {
           post({ type: 'heading', line: lineOf(heading) });
         }
       });
+
+      // Marks every occurrence of the find query in the rendered text. Returns how many were found.
+      window.notepadHighlight = function (query, matchCase, current) {
+        document.querySelectorAll('mark.notepad-find').forEach(function (mark) {
+          mark.replaceWith(document.createTextNode(mark.textContent));
+        });
+        document.body.normalize();
+        if (!query) { return 0; }
+
+        var needle = matchCase ? query : query.toLowerCase();
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        var textNodes = [];
+        while (walker.nextNode()) { textNodes.push(walker.currentNode); }
+
+        var marks = [];
+        textNodes.forEach(function (node) {
+          var text = node.nodeValue;
+          var haystack = matchCase ? text : text.toLowerCase();
+          var index = haystack.indexOf(needle);
+          if (index < 0) { return; }
+          var fragment = document.createDocumentFragment();
+          var position = 0;
+          while (index >= 0) {
+            fragment.appendChild(document.createTextNode(text.slice(position, index)));
+            var mark = document.createElement('mark');
+            mark.className = 'notepad-find';
+            mark.textContent = text.slice(index, index + needle.length);
+            fragment.appendChild(mark);
+            marks.push(mark);
+            position = index + needle.length;
+            index = haystack.indexOf(needle, position);
+          }
+          fragment.appendChild(document.createTextNode(text.slice(position)));
+          node.parentNode.replaceChild(fragment, node);
+        });
+
+        if (current !== null && marks[current]) {
+          marks[current].classList.add('notepad-current');
+          marks[current].scrollIntoView({ block: 'center' });
+        }
+        return marks.length;
+      };
 
       window.notepadScrollToLine = function (line) {
         window.scrollTo(0, Math.max(0, yForLine(line) - 8));

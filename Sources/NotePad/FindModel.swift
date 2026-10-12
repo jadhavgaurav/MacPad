@@ -58,6 +58,13 @@ final class FindModel {
         state.activeEditor?.setFindHighlights(matches, current: currentIndex)
     }
 
+    /// What the preview should highlight. Regex and whole-word search are editor-only, because their matches
+    /// do not map onto the rendered text.
+    var previewHighlight: PreviewFind? {
+        guard isVisible, !query.isEmpty, !options.regex, !options.wholeWord else { return nil }
+        return PreviewFind(query: query, matchCase: options.matchCase, current: currentIndex)
+    }
+
     func next() { step(by: 1) }
     func previous() { step(by: -1) }
 

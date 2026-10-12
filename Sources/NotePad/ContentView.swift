@@ -62,7 +62,8 @@ struct ContentView: View {
                         markdown: doc.text,
                         scrollLine: state.previewLine,
                         onScroll: { state.previewScrolled($0) },
-                        onHeading: { _ = state.goTo(line: $0) }
+                        onHeading: { _ = state.goTo(line: $0) },
+                        find: state.find.previewHighlight
                     )
                         .frame(minWidth: 240)
                 }

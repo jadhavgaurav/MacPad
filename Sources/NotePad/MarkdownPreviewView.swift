@@ -4,12 +4,21 @@ import NotePadCore
 import SwiftUI
 import WebKit
 
+/// A find query to highlight in the rendered page. `current` is the editor's current match, which is
+/// the same match only when the rendered text has as many matches as the source.
+struct PreviewFind: Equatable {
+    let query: String
+    let matchCase: Bool
+    let current: Int?
+}
+
 struct MarkdownPreviewView: NSViewRepresentable {
     let markdown: String
     /// The source line the preview should show at its top.
     let scrollLine: Int
     let onScroll: (Int) -> Void
     let onHeading: (Int) -> Void
+    let find: PreviewFind?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -28,7 +37,7 @@ struct MarkdownPreviewView: NSViewRepresentable {
     func updateNSView(_ view: WKWebView, context: Context) {
         context.coordinator.onScroll = onScroll
         context.coordinator.onHeading = onHeading
-        context.coordinator.update(view, markdown: markdown, scrollLine: scrollLine)
+        context.coordinator.update(view, markdown: markdown, scrollLine: scrollLine, find: find)
     }
 
     static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
@@ -42,9 +51,12 @@ struct MarkdownPreviewView: NSViewRepresentable {
         private var lastMarkdown: String?
         private var renderTask: Task<Void, Never>?
         private var line = 1
+        private var find: PreviewFind?
 
-        func update(_ view: WKWebView, markdown: String, scrollLine: Int) {
+        func update(_ view: WKWebView, markdown: String, scrollLine: Int, find: PreviewFind?) {
             line = scrollLine
+            let findChanged = find != self.find
+            self.find = find
             if markdown != lastMarkdown {
                 lastMarkdown = markdown
                 renderTask?.cancel()
@@ -54,7 +66,8 @@ struct MarkdownPreviewView: NSViewRepresentable {
                     view.loadHTMLString(PreviewHTML.page(body: MarkdownHTML.render(markdown)), baseURL: nil)
                 }
             } else {
-                scroll(view)
+                // A changed search scrolls to its current match instead of the editor's line.
+                if findChanged { highlight(view) } else { scroll(view) }
             }
         }
 
@@ -62,7 +75,19 @@ struct MarkdownPreviewView: NSViewRepresentable {
             view.evaluateJavaScript("window.notepadScrollToLine && window.notepadScrollToLine(\(line));", completionHandler: nil)
         }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { scroll(webView) }
+        /// Marks the find matches on the page, or clears the marks when no search is active.
+        private func highlight(_ view: WKWebView) {
+            let arguments: [Any] = find.map { [$0.query, $0.matchCase, $0.current as Any? ?? NSNull()] }
+                ?? ["", false, NSNull()]
+            guard let data = try? JSONSerialization.data(withJSONObject: arguments),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            view.evaluateJavaScript("window.notepadHighlight && window.notepadHighlight.apply(null, \(json));", completionHandler: nil)
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            highlight(webView)
+            if find == nil { scroll(webView) }
+        }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard let body = message.body as? [String: Any], let value = body["line"] as? NSNumber else { return }
