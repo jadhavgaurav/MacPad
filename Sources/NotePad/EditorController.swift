@@ -30,7 +30,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
     private var ruler: LineNumberRuler?
     private var showsLineNumbers = false
 
-    private static let barInsets = NSEdgeInsets(top: 84, left: 12, bottom: 64, right: 12)
+    private static let barInsets = NSEdgeInsets(top: 84, left: 0, bottom: 64, right: 0)
     private static let textInset = NSSize(width: 28, height: 12)
 
     init(document: TextDocument) {
@@ -43,9 +43,12 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.setSelectedRange(NSRange(location: location, length: min(document.selection.length, length - location)))
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            // Stored offsets count from the top of the content, so convert back to the clip view origin.
-            let origin = self.document.scrollOffsetY - Self.barInsets.top
-            self.scrollView.contentView.scroll(to: NSPoint(x: 0, y: origin))
+            // Lay out first so the line-number gutter has its width, then restore only the vertical position.
+            // The horizontal origin is whatever layout gave the clip view, so text starts at its normal inset.
+            self.scrollView.layoutSubtreeIfNeeded()
+            let horizontal = self.scrollView.contentView.bounds.origin.x
+            let origin = NSPoint(x: horizontal, y: self.document.scrollOffsetY - Self.barInsets.top)
+            self.scrollView.contentView.scroll(to: origin)
             self.scrollView.reflectScrolledClipView(self.scrollView.contentView)
         }
     }
