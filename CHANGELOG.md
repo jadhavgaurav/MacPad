@@ -2,6 +2,12 @@
 
 All notable changes to NotePad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.2.0
+
+### Added
+
+- Version history. NotePad keeps a copy of a file each time you save it. File > Version History lists the saved copies with a preview, and Restore puts one back into the tab as an undoable edit, so the file changes only when you save. Up to 50 copies or 20 MB are kept per file, the oldest go first, and files over 2 MB are not copied.
+
 ## 1.1.0
 
 ### Added
