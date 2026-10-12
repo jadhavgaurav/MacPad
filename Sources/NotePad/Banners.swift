@@ -29,6 +29,24 @@ struct DiskNoticeView: View {
     }
 }
 
+/// Shown when the open file can't be written. Editing is off until the user saves a copy.
+struct ReadOnlyBanner: View {
+    let state: AppState
+    let doc: TextDocument
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock").foregroundStyle(.secondary).accessibilityHidden(true)
+            Text("\(doc.title) is read-only.").font(.system(size: 12))
+            Button("Save As\u{2026}") { state.saveAsCopy(doc) }.pointingHandCursor()
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .glassCapsule()
+    }
+}
+
 struct NoticeView: View {
     let text: String
 

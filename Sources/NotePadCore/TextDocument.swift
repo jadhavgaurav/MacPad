@@ -19,6 +19,8 @@ public final class TextDocument: Identifiable {
     public var formattedOverride: Bool?
     public var previewVisible: Bool
     public var diskModificationDate: Date?
+    /// Set when the file cannot be written. Not saved in the session; it is checked again each time the file opens.
+    public var isReadOnly = false
 
     public static let zoomRange: ClosedRange<Double> = 0.25...5
 

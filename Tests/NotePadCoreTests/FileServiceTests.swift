@@ -105,4 +105,17 @@ import Testing
         let url = URL(fileURLWithPath: "/tmp/notes.txt")
         #expect(FileServiceError.fileNotFound(url).errorDescription?.contains("notes.txt") == true)
     }
+
+    @Test func readOnlyFileIsNotWritable() throws {
+        let url = temporaryURL()
+        try Data("locked".utf8).write(to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: url.path)
+        #expect(FileService.isWritable(url) == false)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path)
+        #expect(FileService.isWritable(url))
+    }
+
+    @Test func missingFileCountsAsWritable() {
+        #expect(FileService.isWritable(temporaryURL("new.txt")))
+    }
 }

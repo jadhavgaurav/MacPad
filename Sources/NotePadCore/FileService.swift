@@ -63,6 +63,12 @@ public enum FileService {
         }
     }
 
+    /// False when the file exists but the current user cannot write it, or when it is a locked file.
+    public static func isWritable(_ url: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: url.path) else { return true }
+        return FileManager.default.isWritableFile(atPath: url.path)
+    }
+
     public static func modificationDate(of url: URL) -> Date? {
         (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
     }

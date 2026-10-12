@@ -113,6 +113,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
     // MARK: Appearance
 
     func apply(settings: EditorSettings, zoom: Double, wrap: Bool, formatted: Bool, showLineNumbers: Bool) {
+        textView.isEditable = !document.isReadOnly
         if showLineNumbers != showsLineNumbers { setLineNumbers(showLineNumbers) }
         let isFirstApply = !hasApplied
         hasApplied = true

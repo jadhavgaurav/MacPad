@@ -259,6 +259,7 @@ final class AppState {
         do {
             let file = try FileService.read(url, as: encoding)
             let doc = TextDocument(text: file.text, fileURL: url, encoding: file.encoding, lineEnding: file.lineEnding)
+            doc.isReadOnly = !FileService.isWritable(url)
             doc.diskModificationDate = file.modificationDate
             let pristine = tabs.count == 1 && tabs[0].fileURL == nil && tabs[0].text.isEmpty ? tabs[0] : nil
             add(doc)
@@ -393,6 +394,11 @@ final class AppState {
     // MARK: View commands
 
     func format(_ command: MarkdownCommand) { activeEditor?.apply(command) }
+
+    /// Save As for a read-only file: the user picks a new location, and the copy becomes writable.
+    func saveAsCopy(_ doc: TextDocument) {
+        if saveAs(doc) { doc.isReadOnly = false }
+    }
 
     /// Runs a line command on the active tab. The change is one undo step, and the selection moves with the lines.
     func lineCommand(_ command: (String, NSRange) -> EditResult) {

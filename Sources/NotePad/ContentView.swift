@@ -79,6 +79,9 @@ struct ContentView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 6)
 
+                if let doc = state.activeDocument, doc.isReadOnly {
+                    ReadOnlyBanner(state: state, doc: doc)
+                }
                 if let doc = state.activeDocument, let status = state.diskStatus[doc.id] {
                     DiskNoticeView(state: state, doc: doc, status: status)
                 }
