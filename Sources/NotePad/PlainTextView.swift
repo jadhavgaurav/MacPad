@@ -75,7 +75,8 @@ final class PlainTextView: NSTextView {
     func refreshCaretDisplay(active: Bool? = nil) {
         positionIndicators(active: active)
         needsDisplay = true
-        // An edit lays out the changed lines lazily, so the positions are checked again once layout has run.
+        // TextKit 2 lays out changed lines lazily, so the positions are checked again once that layout has run.
+        // (NSTextView's own layout-pass hook is public only in the macOS 27 SDK, which older build machines lack.)
         if hasExtraCarets {
             DispatchQueue.main.async { [weak self] in self?.positionIndicators() }
         }
@@ -97,15 +98,6 @@ final class PlainTextView: NSTextView {
             indicator.color = insertionPointColor
             indicator.displayMode = isActive ? .automatic : .hidden
         }
-    }
-
-    /// TextKit 2 lays text out lazily, after edits, restyling and scrolling. The indicators follow each pass.
-    /// NSTextView documents this delegate method from macOS 27, so super is only called where it exists.
-    override func textViewportLayoutControllerDidLayout(_ textViewportLayoutController: NSTextViewportLayoutController) {
-        if NSTextView.instancesRespond(to: #selector(textViewportLayoutControllerDidLayout(_:))) {
-            super.textViewportLayoutControllerDidLayout(textViewportLayoutController)
-        }
-        if hasExtraCarets { positionIndicators() }
     }
 
     /// NSTextView highlights only the primary selection, so the other non-empty selections are filled here,
