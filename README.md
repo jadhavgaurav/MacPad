@@ -10,6 +10,7 @@ A native macOS text editor that looks and works like Windows 11 Notepad, built w
 - Snippets and templates with date, time and cursor placeholders
 - Formatting toolbar, Formatted view, and a Markdown preview that scrolls with the editor, highlights find matches and jumps to a heading when you click it
 - Export Markdown as HTML or PDF, share a tab, and open selected text from any app with the Open Selection in NotePad service
+- Tabs can be dragged out of the tab strip into their own window, and dragged back in with the context menu
 - Version history: a copy of the file is kept each time you save, and any copy can be previewed and restored
 - Focus Mode, read-only files with a banner and Save As, and a Dock badge for unsaved tabs
 - Encodings (UTF-8, UTF-8 with BOM, UTF-16, Windows-1252) and line endings (LF, CRLF, CR)

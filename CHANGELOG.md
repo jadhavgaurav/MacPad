@@ -2,6 +2,15 @@
 
 All notable changes to NotePad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.3.0
+
+### Added
+
+- Tear-off tabs. Drag a tab well below the tab strip to open it in a new window under the cursor. The tab's context menu and File > Move Tab to New Window do the same without dragging.
+- Each window keeps its own tabs and active tab. Menus, the toolbar and the status bar act on the focused window.
+- Torn-off windows reopen with their tabs after a restart. Closing a torn-off window returns its tabs to the main window, so no unsaved text is lost.
+- Drag a tab sideways to reorder it.
+
 ## 1.2.0
 
 ### Added
