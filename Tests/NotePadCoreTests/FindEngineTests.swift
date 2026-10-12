@@ -66,3 +66,33 @@ import Testing
         #expect(LineLocator.range(ofLine: 0, in: "ab") == nil)
     }
 }
+
+@Suite struct RegexFindTests {
+    private let regex = FindOptions(regex: true)
+
+    @Test func findsPatternMatches() {
+        #expect(FindEngine.matches(of: "\\d+", in: "a1 b22 c333", options: regex).map(\.length) == [1, 2, 3])
+    }
+    @Test func regexIsCaseInsensitiveUnlessMatchCase() {
+        #expect(FindEngine.matches(of: "cat", in: "Cat cat", options: regex).count == 2)
+        #expect(FindEngine.matches(of: "cat", in: "Cat cat", options: FindOptions(matchCase: true, regex: true)).count == 1)
+    }
+    @Test func invalidPatternFindsNothingAndIsFlagged() {
+        #expect(FindEngine.matches(of: "(unclosed", in: "text", options: regex).isEmpty)
+        #expect(FindEngine.isValidPattern("(unclosed", options: regex) == false)
+        #expect(FindEngine.isValidPattern("ok\\s", options: regex))
+    }
+    @Test func replaceAllExpandsCaptureGroups() {
+        let result = FindEngine.replacingAll("(\\w+)@(\\w+)", with: "$2 at $1", in: "me@host you@box", options: regex)
+        #expect(result.text == "host at me box at you")
+        #expect(result.count == 2)
+    }
+    @Test func singleReplacementExpandsCaptureGroups() {
+        let text = "x=1 y=2"
+        let match = FindEngine.matches(of: "(\\w)=(\\d)", in: text, options: regex)[1]
+        #expect(FindEngine.replacementText(for: match, in: text, query: "(\\w)=(\\d)", replacement: "$2=$1", options: regex) == "2=y")
+    }
+    @Test func plainModeStillTreatsQueryLiterally() {
+        #expect(FindEngine.matches(of: "a.c", in: "abc a.c", options: FindOptions()).count == 1)
+    }
+}

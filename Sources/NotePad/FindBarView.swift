@@ -18,10 +18,11 @@ struct FindBarView: View {
                     .onExitCommand { find.hide() }
                 Text(find.counterText)
                     .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(find.hasNoResults ? Color.red : .secondary)
+                    .foregroundStyle(find.hasNoResults || find.hasInvalidPattern ? Color.red : .secondary)
                     .frame(minWidth: 56, alignment: .trailing)
                 toggle("Aa", help: "Match case", isOn: $find.options.matchCase)
                 toggle("ab", help: "Whole word", isOn: $find.options.wholeWord)
+                toggle(".*", help: "Regular expression", isOn: $find.options.regex)
                 iconButton("chevron.up", help: "Previous match") { find.previous() }
                 iconButton("chevron.down", help: "Next match") { find.next() }
                 iconButton("arrow.triangle.2.circlepath", help: "Show replace", isOn: find.showsReplace) {

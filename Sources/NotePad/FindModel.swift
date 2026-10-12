@@ -18,11 +18,13 @@ final class FindModel {
 
     var counterText: String {
         if query.isEmpty { return "" }
+        if !FindEngine.isValidPattern(query, options: options) { return "Invalid pattern" }
         guard let currentIndex else { return "No results" }
         return "\(currentIndex + 1) of \(matches.count)"
     }
 
     var hasNoResults: Bool { !query.isEmpty && matches.isEmpty }
+    var hasInvalidPattern: Bool { !query.isEmpty && !FindEngine.isValidPattern(query, options: options) }
 
     func show(replace: Bool) {
         isVisible = true
@@ -71,8 +73,10 @@ final class FindModel {
     func replaceCurrent() {
         guard let index = currentIndex, matches.indices.contains(index), let editor = state.activeEditor else { return }
         let range = matches[index]
-        editor.replaceCharacters(in: range, with: replacement)
-        editor.select(NSRange(location: range.location + (replacement as NSString).length, length: 0), scrollToVisible: false)
+        let text = state.activeDocument?.text ?? ""
+        let inserted = FindEngine.replacementText(for: range, in: text, query: query, replacement: replacement, options: options)
+        editor.replaceCharacters(in: range, with: inserted)
+        editor.select(NSRange(location: range.location + (inserted as NSString).length, length: 0), scrollToVisible: false)
         refresh(select: true)
     }
 
