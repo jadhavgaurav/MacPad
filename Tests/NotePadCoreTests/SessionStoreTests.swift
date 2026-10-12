@@ -115,4 +115,46 @@ import Testing
         try store.save(snapshot)
         #expect(try store.restore().snapshots.first?.text == "v2")
     }
+
+    @Test func setAsideFilesAreListedWithPreview() throws {
+        let store = makeStore()
+        let badURL = store.directory.appendingPathComponent("\(UUID().uuidString).json")
+        try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
+        try Data("{ broken but text is here".utf8).write(to: badURL)
+        _ = try store.restore()
+        let files = try store.quarantinedFiles()
+        #expect(files.count == 1)
+        #expect(files.first?.preview.contains("broken but text is here") == true)
+    }
+
+    @Test func recoveringReadableFileKeepsItsText() throws {
+        let store = makeStore()
+        let tab = TabSnapshot(text: "saved away")
+        try FileManager.default.createDirectory(at: store.directory.appendingPathComponent("quarantine"), withIntermediateDirectories: true)
+        let url = store.directory.appendingPathComponent("quarantine/1700000000-\(tab.id.uuidString).json")
+        try JSONEncoder().encode(tab).write(to: url)
+        let file = try store.quarantinedFiles().first!
+        let recovered = try store.recover(file)
+        #expect(recovered.text == "saved away")
+        #expect(recovered.isDirty)
+        #expect(try store.quarantinedFiles().isEmpty)
+    }
+
+    @Test func recoveringUnreadableFileKeepsRawText() throws {
+        let store = makeStore()
+        let url = store.directory.appendingPathComponent("quarantine/1700000000-bad.json")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("raw words survive".utf8).write(to: url)
+        let file = try store.quarantinedFiles().first!
+        #expect(try store.recover(file).text == "raw words survive")
+    }
+
+    @Test func discardRemovesSetAsideFile() throws {
+        let store = makeStore()
+        let url = store.directory.appendingPathComponent("quarantine/1700000000-gone.json")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: url)
+        try store.discard(try store.quarantinedFiles().first!)
+        #expect(try store.quarantinedFiles().isEmpty)
+    }
 }

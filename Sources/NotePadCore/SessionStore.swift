@@ -113,6 +113,47 @@ public struct SessionStore: Sendable {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
+    /// A session file that could not be read at launch and was moved aside.
+    public struct QuarantinedFile: Identifiable, Equatable, Sendable {
+        public var id: String { url.lastPathComponent }
+        public let url: URL
+        public let setAside: Date
+        /// The start of the file's raw contents, for a quick look before recovering.
+        public let preview: String
+    }
+
+    public func quarantinedFiles() throws -> [QuarantinedFile] {
+        guard FileManager.default.fileExists(atPath: quarantineURL.path) else { return [] }
+        let files = try FileManager.default.contentsOfDirectory(at: quarantineURL, includingPropertiesForKeys: nil)
+        return files.filter { $0.pathExtension == "json" }.map { url in
+            let stamp = url.lastPathComponent.split(separator: "-").first.flatMap { Double($0) } ?? 0
+            let raw = (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+            return QuarantinedFile(url: url, setAside: Date(timeIntervalSince1970: stamp), preview: String(raw.prefix(300)))
+        }.sorted { $0.setAside > $1.setAside }
+    }
+
+    /// Turns a set-aside file back into a tab. A readable tab keeps its text. An unreadable file becomes a tab
+    /// holding its raw contents, so no text is lost. The file is removed once recovered.
+    public func recover(_ file: QuarantinedFile) throws -> TabSnapshot {
+        let data = try Data(contentsOf: file.url)
+        let snapshot: TabSnapshot
+        if let decoded = try? JSONDecoder().decode(TabSnapshot.self, from: data) {
+            snapshot = TabSnapshot(
+                text: decoded.text, filePath: decoded.filePath, encoding: decoded.encoding, lineEnding: decoded.lineEnding,
+                isDirty: true, zoom: decoded.zoom
+            )
+        } else {
+            snapshot = TabSnapshot(text: String(decoding: data, as: UTF8.self), isDirty: true)
+        }
+        try FileManager.default.removeItem(at: file.url)
+        return snapshot
+    }
+
+    /// Deletes a set-aside file the user no longer wants.
+    public func discard(_ file: QuarantinedFile) throws {
+        try FileManager.default.removeItem(at: file.url)
+    }
+
     private func quarantine(_ file: URL) throws {
         try FileManager.default.createDirectory(at: quarantineURL, withIntermediateDirectories: true)
         let target = quarantineURL.appendingPathComponent("\(Int(Date().timeIntervalSince1970))-\(file.lastPathComponent)")

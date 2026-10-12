@@ -20,6 +20,7 @@ final class AppState {
     var previewFraction = 0.0
     /// The traffic lights are hidden in full screen, so the tab strip doesn't need to clear them.
     var isFullScreen = false
+    var recoveryVisible = false
     /// Shown in the footer toggle. Remembered between launches.
     var showLineNumbers = UserDefaults.standard.bool(forKey: SettingsKey.showLineNumbers) {
         didSet { UserDefaults.standard.set(showLineNumbers, forKey: SettingsKey.showLineNumbers) }
@@ -28,6 +29,7 @@ final class AppState {
     let stats = StatsModel()
 
     @ObservationIgnored private var coordinator: SessionCoordinator?
+    @ObservationIgnored private var sessionStore: SessionStore?
     @ObservationIgnored private var editors: [UUID: EditorController] = [:]
     @ObservationIgnored private var started = false
     @ObservationIgnored private var pendingURLs: [URL] = []
@@ -49,6 +51,7 @@ final class AppState {
         }
         do {
             let store = SessionStore(directory: try SessionStore.defaultDirectory())
+            sessionStore = store
             let result = try store.restore()
             if result.isReadOnly {
                 showNotice("This session was saved by a newer version of NotePad, so changes won't be remembered.")
@@ -111,6 +114,34 @@ final class AppState {
 
     func newTab() { add(TextDocument()) }
 
+    // MARK: Recovery of set-aside tabs
+
+    func setAsideFiles() -> [SessionStore.QuarantinedFile] {
+        (try? sessionStore?.quarantinedFiles()) ?? []
+    }
+
+    /// Turns a set-aside file back into a tab, then removes it from quarantine.
+    func recover(_ file: SessionStore.QuarantinedFile) {
+        guard let sessionStore else { return }
+        do {
+            let doc = TextDocument(snapshot: try sessionStore.recover(file))
+            tabs.append(doc)
+            persist(doc)
+            select(doc.id)
+            showNotice("Recovered \(doc.title) as a new tab.")
+        } catch {
+            Dialogs.showError(error)
+        }
+    }
+
+    func discard(_ file: SessionStore.QuarantinedFile) {
+        do {
+            try sessionStore?.discard(file)
+        } catch {
+            Dialogs.showError(error)
+        }
+    }
+
     func select(_ id: UUID) {
         guard tabs.contains(where: { $0.id == id }) else { return }
         activeID = id
@@ -153,12 +184,31 @@ final class AppState {
     }
 
     func closeOthers(keeping id: UUID) {
-        for doc in tabs where doc.id != id { closeTab(doc.id) }
+        closeTabs(tabs.filter { $0.id != id }.map(\.id))
     }
 
     func closeTabs(after id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        for doc in tabs.suffix(from: index + 1) { closeTab(doc.id) }
+        closeTabs(tabs.suffix(from: index + 1).map(\.id))
+    }
+
+    /// Closes several tabs with one question about all of their unsaved changes, instead of one prompt per tab.
+    func closeTabs(_ ids: [UUID]) {
+        let targets = tabs.filter { ids.contains($0.id) }
+        let unsaved = targets.filter { $0.isDirty && !($0.fileURL == nil && $0.text.isEmpty) }
+        if !unsaved.isEmpty {
+            switch Dialogs.confirmCloseMany(unsaved.map(\.title)) {
+            case .saveAll:
+                for doc in unsaved where !save(doc) { return }
+            case .discardAll:
+                break
+            case .cancel:
+                return
+            }
+        }
+        for id in ids {
+            if let index = tabs.firstIndex(where: { $0.id == id }) { remove(at: index) }
+        }
     }
 
     private func add(_ doc: TextDocument) {
@@ -167,9 +217,16 @@ final class AppState {
         select(doc.id)
     }
 
+    /// Shows the number of tabs with unsaved changes on the Dock icon, or nothing when there are none.
+    func updateDockBadge() {
+        let unsaved = tabs.filter { $0.isDirty && !($0.fileURL == nil && $0.text.isEmpty) }.count
+        NSApp.dockTile.badgeLabel = unsaved > 0 ? String(unsaved) : nil
+    }
+
     private func remove(at index: Int) {
         let id = tabs[index].id
         tabs.remove(at: index)
+        updateDockBadge()
         editors[id] = nil
         diskStatus[id] = nil
         enqueue { await $0.remove(id) }
@@ -233,6 +290,7 @@ final class AppState {
         do {
             try FileService.write(doc.text, to: url, encoding: doc.encoding, lineEnding: doc.lineEnding)
             doc.markSaved(to: url, modificationDate: FileService.modificationDate(of: url))
+            updateDockBadge()
             diskStatus[doc.id] = nil
             persist(doc)
             return true
@@ -315,6 +373,7 @@ final class AppState {
 
     func documentEdited(_ doc: TextDocument) {
         persist(doc)
+        updateDockBadge()
         guard doc.id == activeID else { return }
         find.refresh()
         refreshStats(textChanged: true)

@@ -23,6 +23,9 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.15), value: state.find.isVisible)
         .animation(.easeOut(duration: 0.15), value: state.notice)
         .animation(.easeOut(duration: 0.15), value: state.activeID.flatMap { state.diskStatus[$0] })
+        .sheet(isPresented: Binding(get: { state.recoveryVisible }, set: { state.recoveryVisible = $0 })) {
+            RecoveryView(state: state)
+        }
         .dropDestination(for: URL.self) { urls, _ in
             state.open(urls.filter(\.isFileURL))
             return !urls.isEmpty

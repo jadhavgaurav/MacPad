@@ -8,6 +8,7 @@ struct NotePadCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Tab") { state.newTab() }.keyboardShortcut("n")
             Button("Open\u{2026}") { state.presentOpenPanel() }.keyboardShortcut("o")
+            Button("Recover Set-Aside Tabs\u{2026}") { state.recoveryVisible = true }
         }
         CommandGroup(replacing: .saveItem) {
             Button("Close Tab") { if let id = state.activeID { state.closeTab(id) } }.keyboardShortcut("w")
