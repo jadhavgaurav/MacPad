@@ -26,7 +26,12 @@ final class EditorController: NSObject, NSTextViewDelegate {
     private var isApplyingProgrammaticChange = false
     private var hasApplied = false
 
-    private static let contentInset = NSSize(width: 24, height: 60)
+    /// Space for the floating glass bars. The text scrolls under them but starts and ends clear of them.
+    private var ruler: LineNumberRuler?
+    private var showsLineNumbers = false
+
+    private static let barInsets = NSEdgeInsets(top: 84, left: 0, bottom: 64, right: 0)
+    private static let textInset = NSSize(width: 28, height: 12)
 
     init(document: TextDocument) {
         self.document = document
@@ -38,7 +43,9 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.setSelectedRange(NSRange(location: location, length: min(document.selection.length, length - location)))
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.scrollView.contentView.scroll(to: NSPoint(x: 0, y: self.document.scrollOffsetY))
+            // Stored offsets count from the top of the content, so convert back to the clip view origin.
+            let origin = self.document.scrollOffsetY - Self.barInsets.top
+            self.scrollView.contentView.scroll(to: NSPoint(x: 0, y: origin))
             self.scrollView.reflectScrolledClipView(self.scrollView.contentView)
         }
     }
@@ -58,7 +65,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.usesFontPanel = false
         textView.drawsBackground = true
         textView.backgroundColor = .textBackgroundColor
-        textView.textContainerInset = Self.contentInset
+        textView.textContainerInset = Self.textInset
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -69,8 +76,11 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
+        scrollView.scrollerStyle = .overlay
         scrollView.drawsBackground = false
         scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.contentInsets = Self.barInsets
+        scrollView.scrollerInsets = Self.barInsets
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self, selector: #selector(boundsChanged), name: NSView.boundsDidChangeNotification, object: scrollView.contentView
@@ -79,7 +89,8 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
     // MARK: Appearance
 
-    func apply(settings: EditorSettings, zoom: Double, wrap: Bool, formatted: Bool) {
+    func apply(settings: EditorSettings, zoom: Double, wrap: Bool, formatted: Bool, showLineNumbers: Bool) {
+        if showLineNumbers != showsLineNumbers { setLineNumbers(showLineNumbers) }
         let isFirstApply = !hasApplied
         hasApplied = true
         let fontChanged = isFirstApply || settings != self.settings || zoom != self.zoom
@@ -91,6 +102,18 @@ final class EditorController: NSObject, NSTextViewDelegate {
         self.formatted = formatted
         if wrapChanged || fontChanged { applyWrap() }
         if fontChanged || formattedChanged { restyle() }
+    }
+
+    private func setLineNumbers(_ visible: Bool) {
+        showsLineNumbers = visible
+        if visible {
+            let ruler = self.ruler ?? LineNumberRuler(scrollView: scrollView, textView: textView)
+            self.ruler = ruler
+            scrollView.verticalRulerView = ruler
+        }
+        scrollView.hasVerticalRuler = visible
+        scrollView.rulersVisible = visible
+        ruler?.needsDisplay = true
     }
 
     private func applyWrap() {
@@ -222,15 +245,17 @@ final class EditorController: NSObject, NSTextViewDelegate {
     }
 
     var scrollFraction: Double {
-        let documentHeight = textView.frame.height
+        let inset = Self.barInsets
         let visible = scrollView.contentView.bounds.height
-        let travel = max(documentHeight - visible, 1)
-        return min(max(scrollView.contentView.bounds.origin.y / travel, 0), 1)
+        let travel = max(textView.frame.height + inset.top + inset.bottom - visible, 1)
+        let offset = scrollView.contentView.bounds.origin.y + inset.top
+        return min(max(offset / travel, 0), 1)
     }
 
     // MARK: NSTextViewDelegate
 
     func textDidChange(_ notification: Notification) {
+        ruler?.textDidChange()
         guard !isApplyingProgrammaticChange else { return }
         document.text = textView.string
         document.isDirty = true
@@ -253,7 +278,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
     }
 
     @objc private func boundsChanged() {
-        document.scrollOffsetY = scrollView.contentView.bounds.origin.y
+        document.scrollOffsetY = scrollView.contentView.bounds.origin.y + Self.barInsets.top
         onScroll?(document, scrollFraction)
     }
 }

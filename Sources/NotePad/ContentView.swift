@@ -37,7 +37,8 @@ struct ContentView: View {
                     settings: settings,
                     zoom: doc.zoom,
                     wrap: doc.usesWordWrap(default: wrapByDefault),
-                    formatted: doc.usesFormattedView(formatAllText: formatAllText)
+                    formatted: doc.usesFormattedView(formatAllText: formatAllText),
+                    showLineNumbers: state.showLineNumbers
                 )
                 .id(doc.id)
                 if doc.previewVisible {
@@ -49,6 +50,11 @@ struct ContentView: View {
         } else {
             Color(nsColor: .textBackgroundColor)
         }
+    }
+
+    /// With the preview open, the find bar sits over the editor pane so it never covers the rendered text.
+    private var findBarAlignment: Alignment {
+        state.activeDocument?.previewVisible == true ? .leading : .trailing
     }
 
     private var overlays: some View {
@@ -69,7 +75,7 @@ struct ContentView: View {
                 if let notice = state.notice { NoticeView(text: notice) }
                 if state.find.isVisible {
                     FindBarView(find: state.find)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .frame(maxWidth: .infinity, alignment: findBarAlignment)
                         .padding(.horizontal, 16)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }

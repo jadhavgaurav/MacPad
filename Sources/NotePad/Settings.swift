@@ -5,6 +5,7 @@ enum SettingsKey {
     static let fontSize = "editor.fontSize"
     static let wrapByDefault = "editor.wrapByDefault"
     static let formatAllText = "editor.formatAllText"
+    static let showLineNumbers = "editor.showLineNumbers"
 }
 
 struct EditorSettings: Equatable {

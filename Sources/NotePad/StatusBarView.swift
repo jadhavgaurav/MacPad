@@ -23,6 +23,8 @@ struct StatusBarView: View {
                 cell("\(prefix)Chars \(counts.characters.formatted())")
                 cell("\(prefix)No spaces \(counts.charactersWithoutSpaces.formatted())")
                 separator
+                lineNumbersToggle
+                separator
                 zoomMenu(doc)
                 lineEndingMenu(doc)
                 encodingMenu(doc)
@@ -39,6 +41,20 @@ struct StatusBarView: View {
 
     private func cell(_ text: String) -> some View {
         Text(text).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.vertical, 3).lineLimit(1).fixedSize()
+    }
+
+    /// Footer toggle for the line-number gutter. Highlighted while the gutter is shown.
+    private var lineNumbersToggle: some View {
+        Button { state.showLineNumbers.toggle() } label: {
+            Image(systemName: "list.number")
+                .foregroundStyle(state.showLineNumbers ? Color.accentColor : .secondary)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+        }
+        .buttonStyle(.plain)
+        .help(state.showLineNumbers ? "Hide line numbers" : "Show line numbers")
+        .accessibilityLabel("Line numbers")
+        .accessibilityValue(state.showLineNumbers ? "On" : "Off")
+        .accessibilityAddTraits(state.showLineNumbers ? .isSelected : [])
     }
 
     private var separator: some View {
@@ -100,7 +116,10 @@ struct GoToLineView: View {
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
         .padding(16)
-        .onAppear { isFocused = true }
+        .onAppear {
+            // Popovers take focus after they appear, so claim it on the next run loop turn.
+            DispatchQueue.main.async { isFocused = true }
+        }
     }
 
     private func commit() {

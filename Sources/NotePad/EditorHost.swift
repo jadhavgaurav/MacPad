@@ -8,6 +8,7 @@ struct EditorHost: NSViewRepresentable {
     let zoom: Double
     let wrap: Bool
     let formatted: Bool
+    let showLineNumbers: Bool
 
     func makeNSView(context: Context) -> NSView {
         let container = NSView()
@@ -17,7 +18,7 @@ struct EditorHost: NSViewRepresentable {
 
     func updateNSView(_ container: NSView, context: Context) {
         if controller.scrollView.superview !== container { embed(controller.scrollView, in: container) }
-        controller.apply(settings: settings, zoom: zoom, wrap: wrap, formatted: formatted)
+        controller.apply(settings: settings, zoom: zoom, wrap: wrap, formatted: formatted, showLineNumbers: showLineNumbers)
     }
 
     private func embed(_ scrollView: NSScrollView, in container: NSView) {

@@ -53,8 +53,13 @@ struct FindBarView: View {
         .glassRounded(14)
         .onChange(of: find.query) { find.refresh(select: true) }
         .onChange(of: find.options) { find.refresh(select: true) }
-        .onChange(of: find.focusToken) { focused = .query }
-        .onAppear { focused = .query }
+        .onChange(of: find.focusToken) { claimFocus() }
+        .onAppear { claimFocus() }
+    }
+
+    /// The bar is inserted with a transition, so the field can only take focus on the next run-loop turn.
+    private func claimFocus() {
+        DispatchQueue.main.async { focused = .query }
     }
 
     private func toggle(_ label: String, help: String, isOn: Binding<Bool>) -> some View {

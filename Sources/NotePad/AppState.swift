@@ -18,6 +18,10 @@ final class AppState {
     var diskStatus: [UUID: DiskStatus] = [:]
     var gotoVisible = false
     var previewFraction = 0.0
+    /// Shown in the footer toggle. Remembered between launches.
+    var showLineNumbers = UserDefaults.standard.bool(forKey: SettingsKey.showLineNumbers) {
+        didSet { UserDefaults.standard.set(showLineNumbers, forKey: SettingsKey.showLineNumbers) }
+    }
     let find = FindModel()
     let stats = StatsModel()
 
@@ -26,6 +30,7 @@ final class AppState {
     @ObservationIgnored private var started = false
     @ObservationIgnored private var pendingURLs: [URL] = []
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
+    @ObservationIgnored private var persistChain: Task<Void, Never>?
 
     var activeDocument: TextDocument? { tabs.first { $0.id == activeID } }
     var activeEditor: EditorController? { activeID.flatMap { editors[$0] } }
@@ -35,6 +40,11 @@ final class AppState {
     func start() async {
         guard !started else { return }
         started = true
+        // Paths passed on the command line (for example `NotePad.app/Contents/MacOS/NotePad notes.txt`).
+        pendingURLs += CommandLine.arguments.dropFirst().compactMap { argument -> URL? in
+            let url = URL(fileURLWithPath: argument)
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
         do {
             let store = SessionStore(directory: try SessionStore.defaultDirectory())
             let result = try store.restore()
@@ -68,8 +78,10 @@ final class AppState {
     }
 
     /// Writes every tab and the manifest. Awaited before the app quits.
+    /// Waits for every queued session write, then writes the current state of every tab. Awaited before quit.
     func flushSession() async {
         guard let coordinator else { return }
+        await persistChain?.value
         for doc in tabs { await coordinator.schedule(doc.snapshot) }
         await coordinator.flush()
         await coordinator.saveManifest(manifest)
@@ -154,7 +166,7 @@ final class AppState {
         tabs.remove(at: index)
         editors[id] = nil
         diskStatus[id] = nil
-        if let coordinator { Task { await coordinator.remove(id) } }
+        enqueue { await $0.remove(id) }
         if activeID == id { activeID = tabs.isEmpty ? nil : tabs[min(index, tabs.count - 1)].id }
         if tabs.isEmpty { newTab() } else { persistManifest(); find.refresh(); refreshStats(textChanged: true) }
     }
@@ -257,13 +269,17 @@ final class AppState {
     func checkDisk() {
         for doc in tabs {
             guard let url = doc.fileURL else { continue }
-            guard let modified = FileService.modificationDate(of: url) else {
-                diskStatus[doc.id] = .missing
-                continue
+            let decision = DiskChangeDetector.decide(
+                known: doc.diskModificationDate,
+                current: FileService.modificationDate(of: url),
+                isDirty: doc.isDirty
+            )
+            switch decision {
+            case .unchanged: continue
+            case .reload: reloadFromDisk(doc)
+            case .conflict: diskStatus[doc.id] = .changed
+            case .missing: diskStatus[doc.id] = .missing
             }
-            let known = doc.diskModificationDate ?? .distantPast
-            guard abs(modified.timeIntervalSince(known)) > 0.5 else { continue }
-            if doc.isDirty { diskStatus[doc.id] = .changed } else { reloadFromDisk(doc) }
         }
     }
 
@@ -355,16 +371,25 @@ final class AppState {
 
     private var manifest: SessionManifest { SessionManifest(tabIDs: tabs.map(\.id), activeTabID: activeID) }
 
-    private func persist(_ doc: TextDocument) {
+    /// Runs session writes one after another, in the order they were requested.
+    /// Without this, an older snapshot could finish after a newer one and overwrite it.
+    private func enqueue(_ operation: @escaping @Sendable (SessionCoordinator) async -> Void) {
         guard let coordinator else { return }
+        let previous = persistChain
+        persistChain = Task {
+            await previous?.value
+            await operation(coordinator)
+        }
+    }
+
+    private func persist(_ doc: TextDocument) {
         let snapshot = doc.snapshot
-        Task { await coordinator.schedule(snapshot) }
+        enqueue { await $0.schedule(snapshot) }
     }
 
     private func persistManifest() {
-        guard let coordinator else { return }
         let manifest = manifest
-        Task { await coordinator.saveManifest(manifest) }
+        enqueue { await $0.saveManifest(manifest) }
     }
 
     func showNotice(_ text: String) {
