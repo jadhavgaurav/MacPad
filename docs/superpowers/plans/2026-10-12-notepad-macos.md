@@ -23,7 +23,8 @@ The project folder already contains the package, built and verified. Tasks 1 to 
 | `TOOLCHAIN_DIR=/Library/Developer/CommandLineTools swiftlint lint --strict` | clean |
 | `swift build` and `Scripts/bundle.sh debug` | builds, signed `NotePad.app` produced |
 | App launched and inspected (macOS 27) | tabs, toolbar, status bar, Markdown preview split, Formatted view styling confirmed visually |
-| Not yet verified | Find bar, save and close confirmations, external-change banner, dark mode screenshots, Reduce Transparency, VoiceOver, quit and relaunch with unsaved text |
+| Verified in app since | Unsaved-changes prompt (Cancel, Don't Save), external-change reload and banner, quit and relaunch with unsaved text, force quit, corrupt session file quarantine, 2 MB file, Go to Line, Replace All, Save As, light mode, narrow window, line-number gutter alignment, pointing-hand cursor on controls (code applied; screenshots do not show the pointer, so confirm by hovering) |
+| Not yet verified | Full screen (shortcut did not engage), Reduce Transparency, VoiceOver speech output, dark mode after the latest changes |
 
 Run from the project root (`/Users/a12345/Desktop/AI/Github Projects/NotePad`). Set `TOOLCHAIN_DIR` for every SwiftLint run.
 
