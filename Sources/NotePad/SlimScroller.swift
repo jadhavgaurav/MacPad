@@ -2,7 +2,7 @@ import AppKit
 
 /// A thin scroll indicator that draws only the thumb. The default scroller draws a track box, which reads as broken
 /// next to the glass bars.
-final class SlimScroller: NSScroller {
+class SlimScroller: NSScroller {
     private static let thumbInset: CGFloat = 3
 
     override class var isCompatibleWithOverlayScrollers: Bool { true }
