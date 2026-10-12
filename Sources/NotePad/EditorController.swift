@@ -12,7 +12,34 @@ final class PlainTextView: NSTextView {
     /// The offset where an Option-drag column selection started. Nil when no column drag is in progress.
     private var columnAnchor: Int?
 
-    private var currentRanges: [NSRange] { selectedRanges.map { $0.rangeValue } }
+    /// Sets every caret and selection. NSTextView's selectedRanges setter drops extra zero-length carets under
+    /// TextKit 2, so several carets are set as text selections instead.
+    func setCarets(_ ranges: [NSRange]) {
+        guard ranges.count > 1, let layout = textLayoutManager, let content = layout.textContentManager else {
+            setSelectedRanges(ranges.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+            return
+        }
+        let selections: [NSTextSelection] = ranges.compactMap { range in
+            guard let start = content.location(content.documentRange.location, offsetBy: range.location),
+                  let end = content.location(start, offsetBy: range.length),
+                  let textRange = NSTextRange(location: start, end: end) else { return nil }
+            return NSTextSelection(range: textRange, affinity: .downstream, granularity: .character)
+        }
+        layout.textSelections = selections
+        needsDisplay = true
+    }
+
+    /// Every caret and selection. `selectedRanges` reports only the primary one when several carets exist,
+    /// so the text selections of the layout manager are read directly.
+    var currentRanges: [NSRange] {
+        guard let layout = textLayoutManager, let content = layout.textContentManager, layout.textSelections.count > 1 else {
+            return selectedRanges.map { $0.rangeValue }
+        }
+        return layout.textSelections.flatMap { $0.textRanges }.map { textRange in
+            let start = content.offset(from: content.documentRange.location, to: textRange.location)
+            return NSRange(location: start, length: content.offset(from: textRange.location, to: textRange.endLocation))
+        }
+    }
 
     /// Option-click adds a caret where it lands, or removes the one already there. Shift-Option-drag makes a column selection.
     override func mouseDown(with event: NSEvent) {
@@ -24,7 +51,7 @@ final class PlainTextView: NSTextView {
         let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
         guard flags.contains(.shift) else {
             let carets = MultiCursor.togglingCaret(at: index, in: currentRanges)
-            setSelectedRanges(carets.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+            setCarets(carets)
             return
         }
         columnAnchor = index
@@ -38,7 +65,7 @@ final class PlainTextView: NSTextView {
         }
         let head = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
         let ranges = MultiCursor.columnSelection(anchor: anchor, head: head, in: string)
-        setSelectedRanges(ranges.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        setCarets(ranges)
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -51,7 +78,7 @@ final class PlainTextView: NSTextView {
 
     /// Typing replaces every selection, so one keystroke edits each caret.
     override func insertText(_ string: Any, replacementRange: NSRange) {
-        guard selectedRanges.count > 1, let text = string as? String else {
+        guard currentRanges.count > 1, let text = string as? String else {
             super.insertText(string, replacementRange: replacementRange)
             return
         }
@@ -59,7 +86,7 @@ final class PlainTextView: NSTextView {
     }
 
     override func insertNewline(_ sender: Any?) {
-        guard selectedRanges.count > 1 else {
+        guard currentRanges.count > 1 else {
             super.insertNewline(sender)
             return
         }
@@ -67,7 +94,7 @@ final class PlainTextView: NSTextView {
     }
 
     override func deleteBackward(_ sender: Any?) {
-        guard selectedRanges.count > 1 else {
+        guard currentRanges.count > 1 else {
             super.deleteBackward(sender)
             return
         }
@@ -76,7 +103,7 @@ final class PlainTextView: NSTextView {
 
     /// Escape drops back to a single caret, placed at the most recent selection.
     override func cancelOperation(_ sender: Any?) {
-        guard selectedRanges.count > 1, let last = currentRanges.last else {
+        guard currentRanges.count > 1, let last = currentRanges.last else {
             super.cancelOperation(sender)
             return
         }
@@ -90,7 +117,7 @@ final class PlainTextView: NSTextView {
             textStorage?.replaceCharacters(in: change.range, with: change.replacement)
             didChangeText()
         }
-        setSelectedRanges(edit.selections.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        setCarets(edit.selections)
     }
 
     /// Adds a caret on the line above or below, at the same column. Repeating it keeps stacking.
@@ -99,7 +126,7 @@ final class PlainTextView: NSTextView {
             NSSound.beep()
             return
         }
-        setSelectedRanges(carets.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        setCarets(carets)
         if let added = carets.last { scrollRangeToVisible(added) }
     }
 
@@ -120,7 +147,7 @@ final class PlainTextView: NSTextView {
             NSSound.beep()
             return
         }
-        setSelectedRanges((ranges + [next]).map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        setCarets((ranges + [next]))
         scrollRangeToVisible(next)
     }
 
