@@ -96,6 +96,10 @@ final class AppState {
         let controller = EditorController(document: doc)
         controller.onEdit = { [weak self] doc in self?.documentEdited(doc) }
         controller.onSelectionChange = { [weak self] doc in self?.selectionChanged(doc) }
+        controller.onZoom = { [weak self] factor in
+            doc.adjustZoom(by: factor)
+            self?.persist(doc)
+        }
         controller.onScroll = { [weak self] doc, fraction in
             guard let self else { return }
             if doc.id == self.activeID { self.previewFraction = fraction }

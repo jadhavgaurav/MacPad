@@ -4,7 +4,22 @@ import NotePadCore
 
 /// A text view that pastes plain text only, so formatting from other apps never leaks into a .txt file.
 final class PlainTextView: NSTextView {
+    /// Receives the zoom factor for a Command + scroll gesture.
+    var onCommandScroll: ((CGFloat) -> Void)?
+
     override func paste(_ sender: Any?) { pasteAsPlainText(sender) }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard event.modifierFlags.contains(.command), let onCommandScroll else {
+            super.scrollWheel(with: event)
+            return
+        }
+        // Trackpads report small precise deltas; mouse wheels report larger, coarser steps.
+        let step = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY * 0.004 : event.scrollingDeltaY * 0.03
+        guard step != 0 else { return }
+        // Each event changes the zoom by at most 10%, so a fast flick stays controllable.
+        onCommandScroll(min(max(1 + step, 0.9), 1.1))
+    }
 }
 
 /// Owns one tab's NSTextView. Keeping one view per tab preserves undo history, selection and scroll when switching.
@@ -17,6 +32,8 @@ final class EditorController: NSObject, NSTextViewDelegate {
     var onEdit: ((TextDocument) -> Void)?
     var onSelectionChange: ((TextDocument) -> Void)?
     var onScroll: ((TextDocument, Double) -> Void)?
+    /// Called with a zoom factor when the user zooms with Command + scroll.
+    var onZoom: ((CGFloat) -> Void)?
 
     private var settings = EditorSettings()
     private var zoom = 1.0
@@ -57,6 +74,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
     private func configureViews() {
         textView.delegate = self
+        textView.onCommandScroll = { [weak self] factor in self?.onZoom?(factor) }
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
