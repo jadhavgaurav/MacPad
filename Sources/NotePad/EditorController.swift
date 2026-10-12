@@ -80,7 +80,8 @@ final class EditorController: NSObject, NSTextViewDelegate {
         scrollView.drawsBackground = false
         scrollView.automaticallyAdjustsContentInsets = false
         scrollView.contentInsets = Self.barInsets
-        scrollView.scrollerInsets = Self.barInsets
+        // Keep the scroller inside the window margin, clear of the window edge and the trailing glass capsules.
+        scrollView.scrollerInsets = NSEdgeInsets(top: Self.barInsets.top, left: 0, bottom: Self.barInsets.bottom, right: 8)
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self, selector: #selector(boundsChanged), name: NSView.boundsDidChangeNotification, object: scrollView.contentView

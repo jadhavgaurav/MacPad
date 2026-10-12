@@ -18,6 +18,8 @@ final class AppState {
     var diskStatus: [UUID: DiskStatus] = [:]
     var gotoVisible = false
     var previewFraction = 0.0
+    /// The traffic lights are hidden in full screen, so the tab strip doesn't need to clear them.
+    var isFullScreen = false
     /// Shown in the footer toggle. Remembered between launches.
     var showLineNumbers = UserDefaults.standard.bool(forKey: SettingsKey.showLineNumbers) {
         didSet { UserDefaults.standard.set(showLineNumbers, forKey: SettingsKey.showLineNumbers) }

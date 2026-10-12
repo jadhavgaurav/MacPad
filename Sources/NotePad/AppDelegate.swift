@@ -13,6 +13,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.activate(ignoringOtherApps: true)
+        let center = NotificationCenter.default
+        center.addObserver(forName: NSWindow.didEnterFullScreenNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in AppState.shared.isFullScreen = true }
+        }
+        center.addObserver(forName: NSWindow.didExitFullScreenNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in AppState.shared.isFullScreen = false }
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

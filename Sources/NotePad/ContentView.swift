@@ -41,6 +41,8 @@ struct ContentView: View {
                     showLineNumbers: state.showLineNumbers
                 )
                 .id(doc.id)
+                // Keeps the editor's scroll bar clear of the preview divider.
+                .padding(.trailing, doc.previewVisible ? 10 : 0)
                 if doc.previewVisible {
                     Divider()
                     MarkdownPreviewView(markdown: doc.text, scrollFraction: state.previewFraction)
@@ -62,7 +64,7 @@ struct ContentView: View {
             VStack(spacing: 8) {
                 GlassGroup(spacing: 10) {
                     HStack(spacing: 10) {
-                        TabBarView(state: state).padding(.leading, 74)
+                        TabBarView(state: state).padding(.leading, state.isFullScreen ? 0 : 74)
                         ToolbarView(state: state, formatAllText: formatAllText, wrapByDefault: wrapByDefault)
                     }
                 }
