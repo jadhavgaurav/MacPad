@@ -109,6 +109,10 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.typingAttributes = baseAttributes
         if wrapChanged || fontChanged { applyWrap() }
         if fontChanged || formattedChanged { restyle() }
+        // Font size, zoom and wrap change the line metrics the gutter reads, so redraw it once layout has settled.
+        if fontChanged || wrapChanged || formattedChanged {
+            DispatchQueue.main.async { [weak self] in self?.ruler?.textDidChange() }
+        }
     }
 
     private func setLineNumbers(_ visible: Bool) {

@@ -49,8 +49,8 @@ final class LineNumberRuler: NSRulerView {
         let documentStart = contentStorage.documentRange.location
 
         var lastFrame: CGRect?
-        var lastLabelY: CGFloat?
-        var labelSpacing: CGFloat?
+        var lastBaselineY: CGFloat?
+        var baselineSpacing: CGFloat?
         var reachedEnd = false
         layoutManager.enumerateTextLayoutFragments(from: first.rangeInElement.location, options: [.ensuresLayout]) { fragment in
             let frame = fragment.layoutFragmentFrame
@@ -61,11 +61,16 @@ final class LineNumberRuler: NSRulerView {
             let offset = contentStorage.offset(from: documentStart, to: fragment.rangeInElement.location)
             if let line = lineNumber(startingAtUTF16Offset: offset) {
                 // Centre on the text line itself, not the whole paragraph frame, which can be taller than one line.
-                let lineMidY = fragment.textLineFragments.first.map { $0.typographicBounds.midY } ?? frame.height / 2
-                let centerY = frame.minY + lineMidY
-                if let previous = lastLabelY { labelSpacing = centerY - previous }
-                lastLabelY = centerY
-                drawLabel(line, centerY: centerY, in: textView, attributes: attributes)
+                // Align on the text baseline, so numbers in a smaller font still sit on the same line as the text.
+                let baselineY: CGFloat
+                if let first = fragment.textLineFragments.first {
+                    baselineY = frame.minY + first.typographicBounds.origin.y + first.glyphOrigin.y
+                } else {
+                    baselineY = frame.minY + frame.height / 2
+                }
+                if let previous = lastBaselineY { baselineSpacing = baselineY - previous }
+                lastBaselineY = baselineY
+                drawLabel(line, baselineY: baselineY, in: textView, attributes: attributes)
             }
             return true
         }
@@ -73,25 +78,28 @@ final class LineNumberRuler: NSRulerView {
         // A trailing newline starts a final empty line that has no layout fragment of its own.
         if reachedEnd, let lastFrame, textView.string.hasSuffix("\n") {
             // The empty last line sits one text line below the previous label.
-            if let previous = lastLabelY, let spacing = labelSpacing {
-                let centerY = previous + spacing
-                if centerY <= visible.maxY + spacing {
-                    drawLabel(lineStarts.count, centerY: centerY, in: textView, attributes: attributes)
+            if let previous = lastBaselineY, let spacing = baselineSpacing {
+                let baselineY = previous + spacing
+                if baselineY <= visible.maxY + spacing {
+                    drawLabel(lineStarts.count, baselineY: baselineY, in: textView, attributes: attributes)
                 }
             }
         }
     }
 
     private func drawLabel(
-        _ line: Int, centerY: CGFloat, in textView: NSTextView, attributes: [NSAttributedString.Key: Any]
+        _ line: Int, baselineY: CGFloat, in textView: NSTextView, attributes: [NSAttributedString.Key: Any]
     ) {
         // Positions are in text container coordinates, which sit inside the text view's inset.
-        let inContainer = NSPoint(x: 0, y: centerY + textView.textContainerOrigin.y)
-        let origin = convert(inContainer, from: textView)
+        let inContainer = NSPoint(x: 0, y: baselineY + textView.textContainerOrigin.y)
+        let baseline = convert(inContainer, from: textView).y
         let label = "\(line)" as NSString
         let size = label.size(withAttributes: attributes)
+        let font = attributes[.font] as? NSFont
+        // The ruler is flipped, so text is drawn from its top edge. Move up by the font's ascender to land the baseline.
+        let top = baseline - (font?.ascender ?? size.height)
         label.draw(
-            at: NSPoint(x: bounds.width - Self.padding - size.width, y: origin.y - size.height / 2),
+            at: NSPoint(x: bounds.width - Self.padding - size.width, y: top),
             withAttributes: attributes
         )
     }
