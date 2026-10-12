@@ -23,6 +23,7 @@ struct ToolbarView: View {
             .menuIndicator(.visible)
             .help("Heading")
             .frame(width: 46, height: 28)
+            .pointingHandCursor()
 
             Menu {
                 Button("Bulleted List") { state.format(.bulletList) }
@@ -33,6 +34,7 @@ struct ToolbarView: View {
             .menuIndicator(.visible)
             .help("List")
             .frame(width: 46, height: 28)
+            .pointingHandCursor()
 
             iconButton("bold", help: "Bold (\u{2318}B)") { state.format(.bold) }
             iconButton("italic", help: "Italic (\u{2318}I)") { state.format(.italic) }
@@ -65,6 +67,7 @@ struct ToolbarView: View {
                 .frame(width: 28, height: 28)
                 .foregroundStyle(isOn ? Color.accentColor : .secondary)
                 .background(Circle().fill(isOn ? Color.accentColor.opacity(0.16) : .clear))
+                .pointingHandCursor()
         }
         .help(help)
         .accessibilityLabel(help)

@@ -26,6 +26,7 @@ struct TabBarView: View {
                 Image(systemName: "plus").font(.system(size: 12, weight: .medium)).frame(width: 28, height: 28)
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .foregroundStyle(.secondary)
             .help("New tab")
             .accessibilityLabel("New tab")
@@ -59,6 +60,7 @@ private struct TabItemView: View {
         .foregroundStyle(isActive ? .primary : .secondary)
         .background(Capsule().fill(isActive ? Color.accentColor.opacity(0.18) : isHovering ? Color.primary.opacity(0.06) : .clear))
         .contentShape(Capsule())
+        .pointingHandCursor()
         .onHover { isHovering = $0 }
         .onTapGesture { state.select(doc.id) }
         .accessibilityAction(.default) { state.select(doc.id) }
@@ -80,6 +82,7 @@ private struct TabItemView: View {
                 Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .accessibilityLabel("Close \(doc.title)")
         } else if showsDirty {
             Circle().fill(.secondary).frame(width: 7, height: 7)

@@ -16,10 +16,10 @@ struct DiskNoticeView: View {
                 .font(.system(size: 12))
             switch status {
             case .changed:
-                Button("Keep Mine") { state.keepMine(doc) }
-                Button("Reload") { state.reloadFromDisk(doc) }
+                Button("Keep Mine") { state.keepMine(doc) }.pointingHandCursor()
+                Button("Reload") { state.reloadFromDisk(doc) }.pointingHandCursor()
             case .missing:
-                Button("Save As\u{2026}") { state.saveAs(doc) }
+                Button("Save As\u{2026}") { state.saveAs(doc) }.pointingHandCursor()
             }
         }
         .buttonStyle(.borderless)

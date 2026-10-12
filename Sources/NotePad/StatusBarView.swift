@@ -13,6 +13,7 @@ struct StatusBarView: View {
                     cell("Ln \(state.stats.position.line), Col \(state.stats.position.column)")
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 .help("Go to line (\u{2318}L)")
                 .popover(isPresented: Binding(get: { state.gotoVisible }, set: { state.gotoVisible = $0 }), arrowEdge: .top) {
                     GoToLineView(state: state)
@@ -51,6 +52,7 @@ struct StatusBarView: View {
                 .padding(.horizontal, 8).padding(.vertical, 3)
         }
         .buttonStyle(.plain)
+        .pointingHandCursor()
         .help(state.showLineNumbers ? "Hide line numbers" : "Show line numbers")
         .accessibilityLabel("Line numbers")
         .accessibilityValue(state.showLineNumbers ? "On" : "Off")
@@ -68,6 +70,7 @@ struct StatusBarView: View {
             }
         } label: { cell("\(Int((doc.zoom * 100).rounded()))%") }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .pointingHandCursor()
     }
 
     private func lineEndingMenu(_ doc: TextDocument) -> some View {
@@ -77,6 +80,7 @@ struct StatusBarView: View {
             }
         } label: { cell(doc.lineEnding.label) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .pointingHandCursor()
     }
 
     private func encodingMenu(_ doc: TextDocument) -> some View {
@@ -95,6 +99,7 @@ struct StatusBarView: View {
             }
         } label: { cell(doc.encoding.label) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .pointingHandCursor()
     }
 }
 

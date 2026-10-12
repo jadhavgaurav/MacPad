@@ -39,8 +39,12 @@ struct FindBarView: View {
                         .onSubmit { find.replaceCurrent() }
                         .onExitCommand { find.hide() }
                     Spacer(minLength: 0)
-                    Button("Replace") { find.replaceCurrent() }.disabled(find.matches.isEmpty)
-                    Button("Replace All") { find.replaceAll() }.disabled(find.matches.isEmpty)
+                    Button("Replace") { find.replaceCurrent() }
+                        .disabled(find.matches.isEmpty)
+                        .pointingHandCursor()
+                    Button("Replace All") { find.replaceAll() }
+                        .disabled(find.matches.isEmpty)
+                        .pointingHandCursor()
                 }
                 .buttonStyle(.borderless)
                 .font(.system(size: 12))
@@ -69,6 +73,7 @@ struct FindBarView: View {
                 .frame(width: 26, height: 24)
                 .foregroundStyle(isOn.wrappedValue ? Color.accentColor : .secondary)
                 .background(RoundedRectangle(cornerRadius: 8).fill(isOn.wrappedValue ? Color.accentColor.opacity(0.16) : .clear))
+                .pointingHandCursor()
         }
         .buttonStyle(.plain)
         .help(help)
@@ -82,6 +87,7 @@ struct FindBarView: View {
                 .font(.system(size: 11, weight: .medium))
                 .frame(width: 24, height: 24)
                 .foregroundStyle(isOn ? Color.accentColor : .secondary)
+                .pointingHandCursor()
         }
         .buttonStyle(.plain)
         .help(help)
