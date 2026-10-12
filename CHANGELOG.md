@@ -2,6 +2,12 @@
 
 All notable changes to NotePad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.3.1
+
+### Fixed
+
+- The editor's scroll bar now runs the full height of the text. It used to start about a third of the way down the pane, so it looked stuck in the middle when the text was at the top.
+
 ## 1.3.0
 
 ### Added

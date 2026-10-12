@@ -82,8 +82,9 @@ final class EditorController: NSObject, NSTextViewDelegate {
         scrollView.drawsBackground = false
         scrollView.automaticallyAdjustsContentInsets = false
         scrollView.contentInsets = Self.barInsets
-        // Keep the scroller inside the window margin, clear of the window edge and the trailing glass capsules.
-        scrollView.scrollerInsets = NSEdgeInsets(top: Self.barInsets.top, left: 0, bottom: Self.barInsets.bottom, right: 8)
+        // The scroll view already starts below the toolbar and ends above the footer, so the scroller only needs a
+        // small margin from those edges. Its track then runs the full height of the text, from top to bottom.
+        scrollView.scrollerInsets = NSEdgeInsets(top: 6, left: 0, bottom: 6, right: 8)
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self, selector: #selector(boundsChanged), name: NSView.boundsDidChangeNotification, object: scrollView.contentView
