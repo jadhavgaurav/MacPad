@@ -394,6 +394,14 @@ final class AppState {
 
     func format(_ command: MarkdownCommand) { activeEditor?.apply(command) }
 
+    /// Runs a line command on the active tab. The change is one undo step, and the selection moves with the lines.
+    func lineCommand(_ command: (String, NSRange) -> EditResult) {
+        guard let doc = activeDocument, let editor = activeEditor else { return }
+        let result = command(doc.text, doc.selection)
+        editor.replaceWholeText(result.text, selecting: result.selection)
+        editor.focus()
+    }
+
     func toggleWordWrap() {
         guard let doc = activeDocument else { return }
         doc.wordWrapOverride = !doc.usesWordWrap(default: EditorSettings.current().wrapByDefault)
