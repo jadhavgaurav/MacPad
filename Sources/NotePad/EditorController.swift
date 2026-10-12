@@ -30,7 +30,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
     private var ruler: LineNumberRuler?
     private var showsLineNumbers = false
 
-    private static let barInsets = NSEdgeInsets(top: 84, left: 0, bottom: 64, right: 0)
+    private static let barInsets = NSEdgeInsets(top: 84, left: 12, bottom: 64, right: 12)
     private static let textInset = NSSize(width: 28, height: 12)
 
     init(document: TextDocument) {

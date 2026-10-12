@@ -27,8 +27,11 @@ final class LineNumberRuler: NSRulerView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.windowBackgroundColor.withAlphaComponent(0.4).setFill()
+        // Opaque, so text scrolled horizontally never shows through the number column.
+        NSColor.textBackgroundColor.setFill()
         bounds.fill()
+        NSColor.separatorColor.setFill()
+        NSRect(x: bounds.maxX - 1, y: bounds.minY, width: 1, height: bounds.height).fill()
         guard let textView, let layoutManager = textView.textLayoutManager,
               let contentStorage = layoutManager.textContentManager as? NSTextContentStorage else { return }
 
