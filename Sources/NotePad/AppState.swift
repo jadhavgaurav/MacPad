@@ -22,6 +22,7 @@ final class AppState {
     /// The traffic lights are hidden in full screen, so the tab strip doesn't need to clear them.
     var isFullScreen = false
     var recoveryVisible = false
+    var historyVisible = false
     /// Hides the tab strip, toolbar and footer, and centres the text in a narrower column.
     var focusMode = false
     /// Shown in the footer toggle. Remembered between launches.
@@ -31,6 +32,7 @@ final class AppState {
     let find = FindModel()
     let stats = StatsModel()
     let snippets = SnippetLibrary()
+    @ObservationIgnored let history: VersionStore? = try? VersionStore(directory: VersionStore.defaultDirectory())
 
     /// True while the editor is scrolling to follow the preview, so that scroll is not reported back.
     @ObservationIgnored var isFollowingPreview = false
@@ -301,6 +303,7 @@ final class AppState {
             updateDockBadge()
             diskStatus[doc.id] = nil
             persist(doc)
+            recordVersion(of: doc)
             return true
         } catch {
             Dialogs.showError(error)

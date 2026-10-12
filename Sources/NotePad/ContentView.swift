@@ -26,6 +26,9 @@ struct ContentView: View {
         .sheet(isPresented: Binding(get: { state.recoveryVisible }, set: { state.recoveryVisible = $0 })) {
             RecoveryView(state: state)
         }
+        .sheet(isPresented: Binding(get: { state.historyVisible }, set: { state.historyVisible = $0 })) {
+            VersionHistoryView(state: state)
+        }
         .dropDestination(for: URL.self) { urls, _ in
             state.open(urls.filter(\.isFileURL))
             return !urls.isEmpty

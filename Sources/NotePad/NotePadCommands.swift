@@ -13,6 +13,8 @@ struct NotePadCommands: Commands {
             Divider()
             Button("Export as HTML\u{2026}") { state.exportActive(asPDF: false) }
             Button("Export as PDF\u{2026}") { state.exportActive(asPDF: true) }
+            Button("Version History\u{2026}") { state.historyVisible = true }
+                .disabled(state.activeDocument?.fileURL == nil)
             Button("Recover Set-Aside Tabs\u{2026}") { state.recoveryVisible = true }
         }
         CommandGroup(replacing: .saveItem) {
