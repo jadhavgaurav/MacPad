@@ -86,3 +86,50 @@ import Testing
         #expect(edit.selections.count == 1)
     }
 }
+
+@Suite struct MultiCursorCaretTests {
+    @Test func caretMovesUpKeepingTheColumn() {
+        // "abcdef" / "ghi": column 4 on line 1 ("ef") is the line 2 end because line 2 is shorter.
+        let text = "abcdef\nghi\n"
+        #expect(MultiCursor.caretOnAdjacentLine(from: 10, direction: .up, in: text) == 3)
+    }
+
+    @Test func caretMovesDownKeepingTheColumn() {
+        let text = "abcdef\nghijkl"
+        #expect(MultiCursor.caretOnAdjacentLine(from: 2, direction: .down, in: text) == 9)
+        #expect(MultiCursor.caretOnAdjacentLine(from: 5, direction: .down, in: text) == 12)
+    }
+
+    @Test func noCaretBeyondFirstOrLastLine() {
+        let text = "one\ntwo"
+        #expect(MultiCursor.caretOnAdjacentLine(from: 1, direction: .up, in: text) == nil)
+        #expect(MultiCursor.caretOnAdjacentLine(from: 5, direction: .down, in: text) == nil)
+    }
+
+    @Test func addingCaretsGoesFromTheTopmostAndBottommostSelection() {
+        // "aaaa" / "bbbb" / "cccc": the caret at offset 7 is column 2 of line 2.
+        let text = "aaaa\nbbbb\ncccc"
+        let start = [NSRange(location: 7, length: 0)]
+        #expect(MultiCursor.addingCaret(.up, to: start, in: text) == [NSRange(location: 7, length: 0), NSRange(location: 2, length: 0)])
+        #expect(MultiCursor.addingCaret(.down, to: start, in: text) == [NSRange(location: 7, length: 0), NSRange(location: 12, length: 0)])
+    }
+
+    @Test func addingCaretReturnsNilWhenItAlreadyExists() {
+        let text = "aaaa\nbbbb"
+        let selections = [NSRange(location: 2, length: 0), NSRange(location: 7, length: 0)]
+        #expect(MultiCursor.addingCaret(.up, to: selections, in: text) == nil)
+    }
+
+    @Test func optionClickAddsThenRemovesACaret() {
+        let start = [NSRange(location: 0, length: 0)]
+        let added = MultiCursor.togglingCaret(at: 5, in: start)
+        #expect(added.count == 2)
+        let removed = MultiCursor.togglingCaret(at: 5, in: added)
+        #expect(removed == start)
+    }
+
+    @Test func lastCaretIsNeverRemoved() {
+        let start = [NSRange(location: 3, length: 0)]
+        #expect(MultiCursor.togglingCaret(at: 3, in: start) == start)
+    }
+}

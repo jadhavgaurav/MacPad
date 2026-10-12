@@ -25,6 +25,10 @@ struct NotePadCommands: Commands {
         CommandGroup(after: .textEditing) {
             Divider()
             Button("Add Next Occurrence") { state.activeEditor?.addNextOccurrence() }.keyboardShortcut("d")
+            Button("Add Cursor Above") { state.activeEditor?.addCaret(.up) }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+            Button("Add Cursor Below") { state.activeEditor?.addCaret(.down) }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
             Divider()
             Button("Find\u{2026}") { state.find.show(replace: false) }.keyboardShortcut("f")
             Button("Find and Replace\u{2026}") { state.find.show(replace: true) }
@@ -48,8 +52,8 @@ struct NotePadCommands: Commands {
             Button("Numbered List") { state.format(.numberedList) }.keyboardShortcut("7", modifiers: [.command, .shift])
             Divider()
             Button("Duplicate Line") { state.lineCommand(LineEditor.duplicate) }.keyboardShortcut("d", modifiers: [.command, .shift])
-            Button("Move Line Up") { state.lineCommand(LineEditor.moveUp) }.keyboardShortcut(.upArrow, modifiers: [.command, .option])
-            Button("Move Line Down") { state.lineCommand(LineEditor.moveDown) }.keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            Button("Move Line Up") { state.lineCommand(LineEditor.moveUp) }.keyboardShortcut(.upArrow, modifiers: .option)
+            Button("Move Line Down") { state.lineCommand(LineEditor.moveDown) }.keyboardShortcut(.downArrow, modifiers: .option)
             Button("Join Lines") { state.lineCommand(LineEditor.join) }.keyboardShortcut("j", modifiers: .command)
             Button("Sort Lines") { state.lineCommand(LineEditor.sort) }
             Button("Remove Duplicate Lines") { state.lineCommand(LineEditor.removeDuplicates) }

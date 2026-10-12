@@ -14,14 +14,21 @@ final class PlainTextView: NSTextView {
 
     private var currentRanges: [NSRange] { selectedRanges.map { $0.rangeValue } }
 
+    /// Option-click adds a caret where it lands, or removes the one already there. Shift-Option-drag makes a column selection.
     override func mouseDown(with event: NSEvent) {
-        guard event.modifierFlags.contains(.option), event.clickCount == 1 else {
+        let flags = event.modifierFlags
+        guard flags.contains(.option), event.clickCount == 1 else {
             super.mouseDown(with: event)
             return
         }
-        let anchor = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
-        columnAnchor = anchor
-        setSelectedRange(NSRange(location: anchor, length: 0))
+        let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
+        guard flags.contains(.shift) else {
+            let carets = MultiCursor.togglingCaret(at: index, in: currentRanges)
+            setSelectedRanges(carets.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+            return
+        }
+        columnAnchor = index
+        setSelectedRange(NSRange(location: index, length: 0))
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -84,6 +91,16 @@ final class PlainTextView: NSTextView {
             didChangeText()
         }
         setSelectedRanges(edit.selections.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+    }
+
+    /// Adds a caret on the line above or below, at the same column. Repeating it keeps stacking.
+    func addCaret(_ direction: MultiCursor.VerticalDirection) {
+        guard let carets = MultiCursor.addingCaret(direction, to: currentRanges, in: string) else {
+            NSSound.beep()
+            return
+        }
+        setSelectedRanges(carets.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        if let added = carets.last { scrollRangeToVisible(added) }
     }
 
     /// Adds the next match of the current selection. With only carets, it first selects the word at the caret.
@@ -326,6 +343,11 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
     func addNextOccurrence() {
         textView.addNextOccurrence()
+        focus()
+    }
+
+    func addCaret(_ direction: MultiCursor.VerticalDirection) {
+        textView.addCaret(direction)
         focus()
     }
 

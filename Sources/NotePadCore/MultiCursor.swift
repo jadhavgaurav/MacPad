@@ -67,6 +67,54 @@ public enum MultiCursor {
         return ranges
     }
 
+    public enum VerticalDirection: Sendable {
+        case up
+        case down
+    }
+
+    /// The offset on the line above or below `offset`, at the same column. A shorter line puts the caret
+    /// at its end. Returns nil at the first or last line.
+    public static func caretOnAdjacentLine(from offset: Int, direction: VerticalDirection, in text: String) -> Int? {
+        let ns = text as NSString
+        let offset = min(max(offset, 0), ns.length)
+        let line = ns.lineRange(for: NSRange(location: offset, length: 0))
+        let column = offset - line.location
+        switch direction {
+        case .up:
+            guard line.location > 0 else { return nil }
+            let previous = ns.lineRange(for: NSRange(location: line.location - 1, length: 0))
+            return previous.location + min(column, contentLength(of: previous, in: ns))
+        case .down:
+            let nextStart = NSMaxRange(line)
+            guard nextStart < ns.length else { return nil }
+            let next = ns.lineRange(for: NSRange(location: nextStart, length: 0))
+            return next.location + min(column, contentLength(of: next, in: ns))
+        }
+    }
+
+    /// Adds a caret above the topmost selection or below the bottommost one. Returns nil when there is
+    /// no line to add to, or the caret already exists.
+    public static func addingCaret(_ direction: VerticalDirection, to selections: [NSRange], in text: String) -> [NSRange]? {
+        guard let source = direction == .up
+            ? selections.min(by: { $0.location < $1.location })
+            : selections.max(by: { NSMaxRange($0) < NSMaxRange($1) }) else { return nil }
+        let from = direction == .up ? source.location : NSMaxRange(source)
+        guard let caret = caretOnAdjacentLine(from: from, direction: direction, in: text),
+              !selections.contains(NSRange(location: caret, length: 0)) else { return nil }
+        return selections + [NSRange(location: caret, length: 0)]
+    }
+
+    /// Option-click: adds a caret at `offset`, or removes it when a caret is already there.
+    /// The last remaining selection is never removed.
+    public static func togglingCaret(at offset: Int, in selections: [NSRange]) -> [NSRange] {
+        let caret = NSRange(location: offset, length: 0)
+        if selections.contains(caret) {
+            let remaining = selections.filter { $0 != caret }
+            return remaining.isEmpty ? selections : remaining
+        }
+        return selections + [caret]
+    }
+
     /// Inserts `string` at every range. A range that is not empty is replaced.
     public static func insert(_ string: String, at ranges: [NSRange], in text: String) -> Edit {
         edit(text, replacing: ranges.map { ($0, string) })
