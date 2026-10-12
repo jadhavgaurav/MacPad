@@ -74,7 +74,7 @@ public enum MarkdownFormatter {
         let currentLevel = headingPrefix(of: firstLine)?.level ?? 0
         let removing = currentLevel == level
         return transformLines(ns, sel) { line, _ in
-            let body = stripHeadingPrefix(line)
+            let body = stripHeadingPrefix(stripListPrefix(line))
             return removing ? body : String(repeating: "#", count: level) + " " + body
         }
     }
@@ -88,8 +88,8 @@ public enum MarkdownFormatter {
         var counter = 0
         return transformLines(ns, sel) { line, _ in
             if line.trimmingCharacters(in: .whitespaces).isEmpty { return line }
-            let body = stripListPrefix(line)
-            if allMatch { return body }
+            let body = stripHeadingPrefix(stripListPrefix(line))
+            if allMatch { return stripListPrefix(line) }
             counter += 1
             return numbered ? "\(counter). \(body)" : "- \(body)"
         }

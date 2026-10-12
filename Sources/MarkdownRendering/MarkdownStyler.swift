@@ -57,6 +57,14 @@ struct OffsetTable {
         utf16Offsets = offsets
     }
 
+    /// UTF-16 range of the text on a 1-based line, excluding its newline.
+    func lineRange(_ line: Int) -> NSRange? {
+        guard line >= 1, line <= lineStarts.count else { return nil }
+        let start = utf16Offsets[lineStarts[line - 1]]
+        let end = line < lineStarts.count ? utf16Offsets[lineStarts[line]] - 1 : utf16Offsets[utf16Offsets.count - 1]
+        return NSRange(location: start, length: max(0, end - start))
+    }
+
     func range(of sourceRange: SourceRange) -> NSRange? {
         guard let lower = offset(of: sourceRange.lowerBound), let upper = offset(of: sourceRange.upperBound),
               upper >= lower else { return nil }
@@ -82,6 +90,42 @@ private struct SpanWalker: MarkupWalker {
     }
 
     private func nsRange(_ markup: Markup) -> NSRange? { markup.range.flatMap(table.range(of:)) }
+
+    /// Inline nodes inside lazy list continuations report columns offset by the list indent, which can fall outside
+    /// the line. In that case, find the node's text on its line and widen it by `markerWidth` when markers surround it.
+    private func inlineRange(_ markup: Markup, markerWidth: Int) -> NSRange? {
+        if let exact = nsRange(markup) { return exact }
+        guard let start = markup.range?.lowerBound, let line = table.lineRange(start.line) else { return nil }
+        let text = Self.textContent(markup)
+        guard !text.isEmpty else { return nil }
+        let lineText = source.substring(with: line) as NSString
+        let found = lineText.range(of: text)
+        guard found.location != NSNotFound else { return nil }
+        let content = NSRange(location: line.location + found.location, length: found.length)
+        let markerEnd = content.location - markerWidth
+        let markerTail = content.location + content.length + markerWidth
+        guard markerWidth > 0, markerEnd >= 0, markerTail <= source.length else { return content }
+        let marker = source.substring(with: NSRange(location: markerEnd, length: markerWidth))
+        let tail = source.substring(with: NSRange(location: content.location + content.length, length: markerWidth))
+        let markerCharacters: Set<Character> = ["*", "_", "~"]
+        guard marker == tail, marker.allSatisfy({ markerCharacters.contains($0) }) else { return content }
+        return NSRange(location: markerEnd, length: markerTail - markerEnd)
+    }
+
+    /// Concatenated text of an inline node, without its markup.
+    private static func textContent(_ markup: Markup) -> String {
+        var result = ""
+        for child in markup.children {
+            if let text = child as? Text {
+                result += text.string
+            } else if let code = child as? InlineCode {
+                result += code.code
+            } else {
+                result += textContent(child)
+            }
+        }
+        return result
+    }
 
     private mutating func add(_ kind: StyleSpan.Kind, _ range: NSRange?) {
         guard let range, range.length > 0 else { return }
@@ -111,7 +155,7 @@ private struct SpanWalker: MarkupWalker {
     }
 
     mutating func visitStrong(_ strong: Strong) {
-        if let range = nsRange(strong) {
+        if let range = inlineRange(strong, markerWidth: 2) {
             add(.strong, range)
             addEdgeMarkers(of: range, width: 2)
         }
@@ -119,7 +163,7 @@ private struct SpanWalker: MarkupWalker {
     }
 
     mutating func visitEmphasis(_ emphasis: Emphasis) {
-        if let range = nsRange(emphasis) {
+        if let range = inlineRange(emphasis, markerWidth: 1) {
             add(.emphasis, range)
             addEdgeMarkers(of: range, width: 1)
         }

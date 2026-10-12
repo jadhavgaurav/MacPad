@@ -73,6 +73,9 @@ import Testing
         #expect(run(.clearHeading, "### Title", 4).text == "Title")
         #expect(run(.clearHeading, "plain", 0).text == "plain")
     }
+    @Test func headingReplacesBulletPrefix() { #expect(run(.heading(1), "- item", 2).text == "# item") }
+    @Test func bulletReplacesHeadingPrefix() { #expect(run(.bulletList, "# Title", 2).text == "- Title") }
+    @Test func numberedListReplacesHeadingPrefix() { #expect(run(.numberedList, "## Title", 3).text == "1. Title") }
     @Test func hashWithoutSpaceIsNotAHeading() { #expect(run(.heading(1), "#tag", 0).text == "# #tag") }
 
     // Lists

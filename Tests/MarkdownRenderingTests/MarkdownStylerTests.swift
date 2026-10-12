@@ -68,4 +68,9 @@ import Testing
         let text = String(repeating: "# a\n", count: MarkdownStyler.maximumUTF8Length / 4 + 10)
         #expect(MarkdownStyler.spans(for: text).isEmpty)
     }
+
+    @Test func boldLineAfterListItemIsStyled() {
+        let text = "- Title here\n**Some words to format**"
+        #expect(spans(text, .strong) == [NSRange(location: 13, length: 24)])
+    }
 }
