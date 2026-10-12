@@ -79,6 +79,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          gh release create "$REF_NAME" dist/* \
-            --title "NotePad $REF_NAME" \
-            --generate-notes
+          # Re-running for a tag that already has a release only refreshes its files.
+          if gh release view "$REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$REF_NAME" dist/* --clobber
+          else
+            gh release create "$REF_NAME" dist/* \
+              --title "NotePad $REF_NAME" \
+              --generate-notes
+          fi
