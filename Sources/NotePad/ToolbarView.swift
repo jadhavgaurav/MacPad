@@ -43,7 +43,12 @@ struct ToolbarView: View {
             iconButton("link", help: "Link (\u{2318}K)") { state.format(.link(url: nil)) }
 
             divider
-            iconButton("textformat", help: formatted ? "Show raw Markdown" : "Show formatted text", label: "Formatted text", isOn: formatted) {
+            iconButton(
+                "textformat",
+                help: formatted ? "Show raw Markdown" : "Show formatted text",
+                label: "Formatted text",
+                isOn: formatted
+            ) {
                 state.toggleFormattedView()
             }
             iconButton("sidebar.right", help: "Markdown preview", isOn: doc?.previewVisible ?? false) {
