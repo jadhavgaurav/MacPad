@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import NotePadCore
 
@@ -18,8 +19,24 @@ extension AppState {
     /// The window that shows a tab.
     func window(of id: UUID) -> UUID? { tabs.first { $0.id == id }.map(windowID(of:)) }
 
-    /// Moves a tab into a new window of its own, which opens with that tab in front.
-    func moveToNewWindow(_ id: UUID) {
+    /// Moves a tab to a slot among the tabs of its window. `position` counts the other tabs in that window.
+    func moveTab(_ id: UUID, toPosition position: Int) {
+        guard let doc = tabs.first(where: { $0.id == id }) else { return }
+        let window = windowID(of: doc)
+        var order = tabs(in: window).map(\.id).filter { $0 != id }
+        order.insert(id, at: min(max(position, 0), order.count))
+        // Only this window's slots change, so tabs in other windows keep their places.
+        let slots = tabs.indices.filter { windowID(of: tabs[$0]) == window }
+        let byID = Dictionary(uniqueKeysWithValues: tabs.map { ($0.id, $0) })
+        for (slot, tabID) in zip(slots, order) {
+            if let moved = byID[tabID] { tabs[slot] = moved }
+        }
+        persistManifest()
+    }
+
+    /// Moves a tab into a new window of its own, which opens with that tab in front. `screenPoint` is where the
+    /// drop happened, so the window can open under the cursor.
+    func moveToNewWindow(_ id: UUID, at screenPoint: NSPoint? = nil) {
         guard let doc = tabs.first(where: { $0.id == id }) else { return }
         let source = windowID(of: doc)
         let window = UUID()
@@ -29,6 +46,7 @@ extension AppState {
         doc.windowID = window
         detachedWindowIDs.append(window)
         activeByWindow[window] = id
+        pendingPlacements[window] = screenPoint
         persist(doc)
         openWindowAction?(window)
         windowLostTab(source)

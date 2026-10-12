@@ -141,13 +141,28 @@ private struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         let coordinator = context.coordinator
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
+        let windowID = windowID
+        let state = state
+        // The view joins its window a little after it is created, so retry briefly until the window exists.
+        func configure(attempt: Int) {
+            guard let window = view.window else {
+                if attempt < 40 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.025) { configure(attempt: attempt + 1) }
+                }
+                return
+            }
             window.isMovableByWindowBackground = true
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             coordinator.observe(window)
+            if let point = state.pendingPlacements.removeValue(forKey: windowID) {
+                // Opens under the drop point, but never partly off the screen.
+                let target = NSRect(origin: NSPoint(x: point.x - 90, y: point.y - window.frame.height + 14), size: window.frame.size)
+                let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? window.screen
+                window.setFrame(screen.map { window.constrainFrameRect(target, to: $0) } ?? target, display: true)
+            }
         }
+        DispatchQueue.main.async { configure(attempt: 0) }
         return view
     }
 

@@ -52,14 +52,6 @@ extension AppState {
         select(number >= 9 ? shown[shown.count - 1].id : shown[min(number - 1, shown.count - 1)].id)
     }
 
-    func moveTab(_ id: UUID, before target: UUID) {
-        guard id != target,
-              let from = tabs.firstIndex(where: { $0.id == id }),
-              let to = tabs.firstIndex(where: { $0.id == target }) else { return }
-        tabs.move(fromOffsets: IndexSet(integer: from), toOffset: to)
-        persistManifest()
-    }
-
     func closeTab(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let doc = tabs[index]

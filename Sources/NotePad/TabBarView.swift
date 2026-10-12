@@ -2,19 +2,32 @@ import AppKit
 import NotePadCore
 import SwiftUI
 
+/// The on-screen frame of each tab, in the tab strip's coordinate space, used to work out drag positions.
+private struct TabFrameKey: PreferenceKey {
+    static let defaultValue: [UUID: CGRect] = [:]
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+private let tabStripSpace = "tabStrip"
+
 struct TabBarView: View {
     let state: AppState
     let windowID: UUID
+    @Local private var frames: [UUID: CGRect] = [:]
 
     var body: some View {
         HStack(spacing: 2) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
                     ForEach(state.tabs(in: windowID)) { doc in
-                        TabItemView(doc: doc, state: state, windowID: windowID)
+                        TabItemView(doc: doc, state: state, windowID: windowID, frames: frames)
                     }
                 }
                 .padding(.horizontal, 2)
+                .coordinateSpace(name: tabStripSpace)
+                .onPreferenceChange(TabFrameKey.self) { frames = $0 }
             }
             .mask(
                 LinearGradient(
@@ -42,7 +55,9 @@ private struct TabItemView: View {
     let doc: TextDocument
     let state: AppState
     let windowID: UUID
+    let frames: [UUID: CGRect]
     @Local private var isHovering = false
+    @Local private var dragOffset: CGFloat = 0
 
     private var isActive: Bool { state.activeByWindow[windowID] == doc.id }
     private var showsDirty: Bool { doc.isDirty && !(doc.fileURL == nil && doc.text.isEmpty) }
@@ -61,21 +76,43 @@ private struct TabItemView: View {
         .frame(height: 30)
         .foregroundStyle(isActive ? .primary : .secondary)
         .background(Capsule().fill(isActive ? Color.accentColor.opacity(0.18) : isHovering ? Color.primary.opacity(0.06) : .clear))
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: TabFrameKey.self, value: [doc.id: proxy.frame(in: .named(tabStripSpace))])
+        })
         .contentShape(Capsule())
         .pointingHandCursor()
         .onHover { isHovering = $0 }
         .onTapGesture { state.select(doc.id) }
         .accessibilityAction(.default) { state.select(doc.id) }
-        .draggable(doc.id.uuidString)
-        .dropDestination(for: String.self) { items, _ in
-            guard let raw = items.first, let id = UUID(uuidString: raw) else { return false }
-            withAnimation(.easeOut(duration: 0.15)) { state.moveTab(id, before: doc.id) }
-            return true
-        }
+        .offset(x: dragOffset)
+        .gesture(dragGesture)
         .contextMenu { menu }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(showsDirty ? "\(doc.title), unsaved" : doc.title)
         .accessibilityAddTraits(isActive ? [.isSelected, .isButton] : .isButton)
+    }
+
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 6, coordinateSpace: .named(tabStripSpace))
+            .onChanged { value in dragOffset = value.translation.width }
+            .onEnded { value in
+                dragOffset = 0
+                finishDrag(translation: value.translation)
+            }
+    }
+
+    /// A drop well below or above the strip tears the tab off into its own window, under the cursor. A sideways
+    /// drop moves the tab to the slot where it was let go.
+    private func finishDrag(translation: CGSize) {
+        if abs(translation.height) > 40 {
+            state.moveToNewWindow(doc.id, at: NSEvent.mouseLocation)
+            return
+        }
+        guard let frame = frames[doc.id] else { return }
+        let centre = frame.midX + translation.width
+        let others = state.tabs(in: windowID).filter { $0.id != doc.id }
+        let position = others.filter { (frames[$0.id]?.midX ?? 0) < centre }.count
+        withAnimation(.easeOut(duration: 0.15)) { state.moveTab(doc.id, toPosition: position) }
     }
 
     @ViewBuilder private var trailingSlot: some View {

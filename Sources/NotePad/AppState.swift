@@ -21,6 +21,8 @@ final class AppState {
     var detachedWindowIDs: [UUID] = []
     /// The window that last became key. Menus, the toolbar and the status bar act on its active tab.
     var focusedWindowID = AppState.mainWindowID
+    /// Where a torn-off window should appear, in screen coordinates. Used once, when the window opens.
+    @ObservationIgnored var pendingPlacements: [UUID: NSPoint] = [:]
     var notice: String?
     var diskStatus: [UUID: DiskStatus] = [:]
     var gotoVisible = false
