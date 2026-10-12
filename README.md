@@ -3,10 +3,15 @@
 A native macOS text editor that looks and works like Windows 11 Notepad, built with Swift, AppKit and SwiftUI.
 
 - Open any plain-text or Markdown file in tabs
-- Unsaved text survives quit and crashes. Every tab is restored until you close it.
-- Find and replace, Go to Line, live counts (lines, words, characters)
+- Unsaved text survives quit and crashes. Every tab is restored until you close it, and tabs that could not be read are kept aside for recovery.
+- Find and replace with regular expressions and capture groups, Go to Line, live counts, selection counts and reading time
+- Multiple cursors as in VS Code: Option-click, Command-Option-Up or Down, Command-D for the next match, and Shift-Option-drag for a column
+- Line commands: duplicate, move up or down, join, sort and remove duplicate lines
+- Snippets and templates with date, time and cursor placeholders
+- Formatting toolbar, Formatted view, and a Markdown preview that scrolls with the editor, highlights find matches and jumps to a heading when you click it
+- Export Markdown as HTML or PDF, share a tab, and open selected text from any app with the Open Selection in NotePad service
+- Focus Mode, read-only files with a banner and Save As, and a Dock badge for unsaved tabs
 - Encodings (UTF-8, UTF-8 with BOM, UTF-16, Windows-1252) and line endings (LF, CRLF, CR)
-- Formatting toolbar, Formatted view, and a Markdown preview
 - Liquid Glass chrome on macOS 26 and later, with a system-material fallback on macOS 14 and 15
 
 ## Install
@@ -45,11 +50,11 @@ open build/NotePad.app
 
 ## Publish a release
 
-Push a version tag. The `Release` workflow tests the code, builds the app, and attaches the zip and checksum to a new GitHub release.
+Push a version tag. The `Release` workflow tests the code, builds the app, and attaches the DMG, the zip and their checksums to a new GitHub release.
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 You can also run the workflow by hand from the Actions tab to produce a build without publishing a release.
