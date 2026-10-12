@@ -8,6 +8,11 @@ public enum PreviewScript {
 
     public static let source = """
     (function () {
+      // The editor's scroll bar is the one that shows position. Hiding the preview's keeps the two from disagreeing.
+      var hideScrollbar = document.createElement('style');
+      hideScrollbar.textContent = 'html { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }';
+      document.head.appendChild(hideScrollbar);
+
       var lineOf = function (el) { return +el.getAttribute('data-line'); };
       var topOf = function (el) { return el.getBoundingClientRect().top + window.scrollY; };
       var blocks = function () { return document.querySelectorAll('[data-line]'); };
