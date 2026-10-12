@@ -49,6 +49,8 @@ final class LineNumberRuler: NSRulerView {
         let documentStart = contentStorage.documentRange.location
 
         var lastFrame: CGRect?
+        var lastLabelY: CGFloat?
+        var labelSpacing: CGFloat?
         var reachedEnd = false
         layoutManager.enumerateTextLayoutFragments(from: first.rangeInElement.location, options: [.ensuresLayout]) { fragment in
             let frame = fragment.layoutFragmentFrame
@@ -58,27 +60,38 @@ final class LineNumberRuler: NSRulerView {
             reachedEnd = fragmentEnd == contentStorage.offset(from: documentStart, to: layoutManager.documentRange.endLocation)
             let offset = contentStorage.offset(from: documentStart, to: fragment.rangeInElement.location)
             if let line = lineNumber(startingAtUTF16Offset: offset) {
-                drawLabel(line, at: frame, attributes: attributes, in: textView)
+                // Centre on the text line itself, not the whole paragraph frame, which can be taller than one line.
+                let lineMidY = fragment.textLineFragments.first.map { $0.typographicBounds.midY } ?? frame.height / 2
+                let centerY = frame.minY + lineMidY
+                if let previous = lastLabelY { labelSpacing = centerY - previous }
+                lastLabelY = centerY
+                drawLabel(line, centerY: centerY, in: textView, attributes: attributes)
             }
             return true
         }
 
         // A trailing newline starts a final empty line that has no layout fragment of its own.
         if reachedEnd, let lastFrame, textView.string.hasSuffix("\n") {
-            let emptyLine = lineStarts.count
-            let frame = CGRect(x: lastFrame.minX, y: lastFrame.maxY, width: lastFrame.width, height: lastFrame.height)
-            if frame.minY <= visible.maxY { drawLabel(emptyLine, at: frame, attributes: attributes, in: textView) }
+            // The empty last line sits one text line below the previous label.
+            if let previous = lastLabelY, let spacing = labelSpacing {
+                let centerY = previous + spacing
+                if centerY <= visible.maxY + spacing {
+                    drawLabel(lineStarts.count, centerY: centerY, in: textView, attributes: attributes)
+                }
+            }
         }
     }
 
-    private func drawLabel(_ line: Int, at frame: CGRect, attributes: [NSAttributedString.Key: Any], in textView: NSTextView) {
-        // Fragment frames are in text container coordinates, which sit inside the text view's inset.
-        let inContainer = NSPoint(x: 0, y: frame.minY + textView.textContainerOrigin.y)
+    private func drawLabel(
+        _ line: Int, centerY: CGFloat, in textView: NSTextView, attributes: [NSAttributedString.Key: Any]
+    ) {
+        // Positions are in text container coordinates, which sit inside the text view's inset.
+        let inContainer = NSPoint(x: 0, y: centerY + textView.textContainerOrigin.y)
         let origin = convert(inContainer, from: textView)
         let label = "\(line)" as NSString
         let size = label.size(withAttributes: attributes)
         label.draw(
-            at: NSPoint(x: bounds.width - Self.padding - size.width, y: origin.y + (frame.height - size.height) / 2),
+            at: NSPoint(x: bounds.width - Self.padding - size.width, y: origin.y - size.height / 2),
             withAttributes: attributes
         )
     }

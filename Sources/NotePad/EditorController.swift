@@ -105,6 +105,8 @@ final class EditorController: NSObject, NSTextViewDelegate {
         self.zoom = zoom
         self.wrap = wrap
         self.formatted = formatted
+        // Text typed from now on inherits the editor's font and line height, so new lines line up with the gutter.
+        textView.typingAttributes = baseAttributes
         if wrapChanged || fontChanged { applyWrap() }
         if fontChanged || formattedChanged { restyle() }
     }
@@ -260,7 +262,8 @@ final class EditorController: NSObject, NSTextViewDelegate {
     // MARK: NSTextViewDelegate
 
     func textDidChange(_ notification: Notification) {
-        ruler?.textDidChange()
+        // The new line's layout is not ready until the next run-loop turn, so redraw the gutter then.
+        DispatchQueue.main.async { [weak self] in self?.ruler?.textDidChange() }
         guard !isApplyingProgrammaticChange else { return }
         document.text = textView.string
         document.isDirty = true
