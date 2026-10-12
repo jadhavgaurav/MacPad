@@ -3,7 +3,11 @@ import NotePadCore
 import SwiftUI
 
 struct ContentView: View {
+    /// The window this view shows. Each window shows its own active tab.
+    let windowID: UUID
     private let state = AppState.shared
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @AppStorage(SettingsKey.fontName) private var fontName = EditorSettings.systemMono
     @AppStorage(SettingsKey.fontSize) private var fontSize = 13.0
     @AppStorage(SettingsKey.wrapByDefault) private var wrapByDefault = true
@@ -18,16 +22,23 @@ struct ContentView: View {
             editorArea
             overlays
         }
-        .background(WindowConfigurator())
+        .background(WindowConfigurator(windowID: windowID, state: state))
         .ignoresSafeArea()
         .animation(.easeOut(duration: 0.15), value: state.find.isVisible)
         .animation(.easeOut(duration: 0.15), value: state.notice)
-        .animation(.easeOut(duration: 0.15), value: state.activeID.flatMap { state.diskStatus[$0] })
-        .sheet(isPresented: Binding(get: { state.recoveryVisible }, set: { state.recoveryVisible = $0 })) {
+        .animation(.easeOut(duration: 0.15), value: windowDocument.flatMap { state.diskStatus[$0.id] })
+        .sheet(isPresented: Binding(get: { state.recoveryVisible && isFocused }, set: { state.recoveryVisible = $0 })) {
             RecoveryView(state: state)
         }
-        .sheet(isPresented: Binding(get: { state.historyVisible }, set: { state.historyVisible = $0 })) {
+        .sheet(isPresented: Binding(get: { state.historyVisible && isFocused }, set: { state.historyVisible = $0 })) {
             VersionHistoryView(state: state)
+        }
+        // A torn-off window hands its tabs back when its content goes away, which happens when the window closes.
+        .onDisappear { if windowID != AppState.mainWindowID { state.windowWasClosed(windowID) } }
+        .task {
+            state.openWindowAction = { openWindow(value: $0) }
+            state.dismissWindowAction = { dismissWindow(value: $0) }
+            if windowID == AppState.mainWindowID { await state.start() }
         }
         .dropDestination(for: URL.self) { urls, _ in
             state.open(urls.filter(\.isFileURL))
@@ -35,8 +46,16 @@ struct ContentView: View {
         }
     }
 
+    /// The tab this window shows.
+    private var windowDocument: TextDocument? {
+        state.tabs.first { $0.id == state.activeByWindow[windowID] }
+    }
+
+    /// Only the focused window shows the find bar, notices and sheets, so they never appear twice.
+    private var isFocused: Bool { state.focusedWindowID == windowID }
+
     @ViewBuilder private var editorArea: some View {
-        if let doc = state.activeDocument {
+        if let doc = windowDocument {
             HStack(spacing: 0) {
                 ZStack(alignment: .topTrailing) {
                     EditorHost(
@@ -50,7 +69,7 @@ struct ContentView: View {
                     .id(doc.id)
                     // Keeps the editor's scroll bar clear of the preview divider.
                     .padding(.trailing, doc.previewVisible ? 10 : 0)
-                    if state.find.isVisible {
+                    if state.find.isVisible && isFocused {
                         // Sits in the editor pane, below the tab and toolbar strip, so it never covers the preview or the wall.
                         FloatingHost(content: FindBarView(find: state.find))
                             .fixedSize()
@@ -86,20 +105,20 @@ struct ContentView: View {
             if !state.focusMode { VStack(spacing: 8) {
                 GlassGroup(spacing: 10) {
                     HStack(spacing: 10) {
-                        TabBarView(state: state).padding(.leading, state.isFullScreen ? 0 : 74)
+                        TabBarView(state: state, windowID: windowID).padding(.leading, state.isFullScreen ? 0 : 74)
                         ToolbarView(state: state, formatAllText: formatAllText, wrapByDefault: wrapByDefault)
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 6)
 
-                if let doc = state.activeDocument, doc.isReadOnly {
+                if let doc = windowDocument, doc.isReadOnly {
                     ReadOnlyBanner(state: state, doc: doc)
                 }
-                if let doc = state.activeDocument, let status = state.diskStatus[doc.id] {
+                if let doc = windowDocument, let status = state.diskStatus[doc.id] {
                     DiskNoticeView(state: state, doc: doc, status: status)
                 }
-                if let notice = state.notice { NoticeView(text: notice) }
+                if let notice = state.notice, isFocused { NoticeView(text: notice) }
                 Spacer(minLength: 0)
             } }
             if !state.focusMode {
@@ -112,18 +131,47 @@ struct ContentView: View {
     }
 }
 
-/// Makes the title bar area draggable and the window comfortable to resize.
+/// Makes the title bar area draggable, and reports when this window becomes key.
 private struct WindowConfigurator: NSViewRepresentable {
+    let windowID: UUID
+    let state: AppState
+
+    func makeCoordinator() -> Coordinator { Coordinator(windowID: windowID, state: state) }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
+        let coordinator = context.coordinator
         DispatchQueue.main.async {
             guard let window = view.window else { return }
             window.isMovableByWindowBackground = true
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
+            coordinator.observe(window)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {}
+
+    @MainActor
+    final class Coordinator {
+        private let windowID: UUID
+        private let state: AppState
+        private var tokens: [NSObjectProtocol] = []
+
+        init(windowID: UUID, state: AppState) {
+            self.windowID = windowID
+            self.state = state
+        }
+
+        func observe(_ window: NSWindow) {
+            guard tokens.isEmpty else { return }
+            let center = NotificationCenter.default
+            let windowID = windowID
+            let state = state
+            tokens.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { _ in
+                MainActor.assumeIsolated { state.focusedWindowID = windowID }
+            })
+        }
+    }
 }

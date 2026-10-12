@@ -4,13 +4,14 @@ import SwiftUI
 
 struct TabBarView: View {
     let state: AppState
+    let windowID: UUID
 
     var body: some View {
         HStack(spacing: 2) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
-                    ForEach(state.tabs) { doc in
-                        TabItemView(doc: doc, state: state)
+                    ForEach(state.tabs(in: windowID)) { doc in
+                        TabItemView(doc: doc, state: state, windowID: windowID)
                     }
                 }
                 .padding(.horizontal, 2)
@@ -40,9 +41,10 @@ struct TabBarView: View {
 private struct TabItemView: View {
     let doc: TextDocument
     let state: AppState
+    let windowID: UUID
     @Local private var isHovering = false
 
-    private var isActive: Bool { state.activeID == doc.id }
+    private var isActive: Bool { state.activeByWindow[windowID] == doc.id }
     private var showsDirty: Bool { doc.isDirty && !(doc.fileURL == nil && doc.text.isEmpty) }
 
     var body: some View {
@@ -94,9 +96,11 @@ private struct TabItemView: View {
     @ViewBuilder private var menu: some View {
         Button("Close") { state.closeTab(doc.id) }
         Button("Close Others") { state.closeOthers(keeping: doc.id) }
-            .disabled(state.tabs.count < 2)
+            .disabled(state.tabs(in: windowID).count < 2)
         Button("Close to the Right") { state.closeTabs(after: doc.id) }
-            .disabled(state.tabs.last?.id == doc.id)
+            .disabled(state.tabs(in: windowID).last?.id == doc.id)
+        Button("Move to New Window") { state.moveToNewWindow(doc.id) }
+            .disabled(state.tabs(in: windowID).count < 2 && windowID != AppState.mainWindowID)
         if let url = doc.fileURL {
             Divider()
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }

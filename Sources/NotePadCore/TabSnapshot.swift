@@ -16,6 +16,8 @@ public struct TabSnapshot: Codable, Equatable, Sendable, Identifiable {
     public var formatted: Bool?
     public var previewVisible: Bool
     public var diskModificationDate: Date?
+    /// The window this tab was moved into. Nil means the main window.
+    public var windowID: UUID?
 
     public init(
         id: UUID = UUID(),
@@ -31,7 +33,8 @@ public struct TabSnapshot: Codable, Equatable, Sendable, Identifiable {
         wordWrap: Bool? = nil,
         formatted: Bool? = nil,
         previewVisible: Bool = false,
-        diskModificationDate: Date? = nil
+        diskModificationDate: Date? = nil,
+        windowID: UUID? = nil
     ) {
         self.id = id
         self.text = text
@@ -47,5 +50,6 @@ public struct TabSnapshot: Codable, Equatable, Sendable, Identifiable {
         self.formatted = formatted
         self.previewVisible = previewVisible
         self.diskModificationDate = diskModificationDate
+        self.windowID = windowID
     }
 }

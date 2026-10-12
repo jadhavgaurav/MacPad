@@ -6,11 +6,19 @@ public struct SessionManifest: Codable, Equatable, Sendable {
     public var schemaVersion: Int
     public var tabIDs: [UUID]
     public var activeTabID: UUID?
+    /// Windows other than the main one, in the order they were opened. Missing in sessions saved before tear-off.
+    public var windowIDs: [UUID]?
 
-    public init(schemaVersion: Int = SessionManifest.currentSchemaVersion, tabIDs: [UUID], activeTabID: UUID?) {
+    public init(
+        schemaVersion: Int = SessionManifest.currentSchemaVersion,
+        tabIDs: [UUID],
+        activeTabID: UUID?,
+        windowIDs: [UUID]? = nil
+    ) {
         self.schemaVersion = schemaVersion
         self.tabIDs = tabIDs
         self.activeTabID = activeTabID
+        self.windowIDs = windowIDs
     }
 }
 
@@ -21,6 +29,8 @@ public struct RestoreResult: Equatable, Sendable {
     public var recoveredOrphanCount: Int
     /// True when the manifest was written by a newer version. Nothing should be written back.
     public var isReadOnly: Bool
+    /// Torn-off windows recorded in the manifest, in the order they were opened.
+    public var windowIDs: [UUID] = []
 }
 
 /// Reads and writes the session directory. Every write is atomic (temp file, then rename).
@@ -103,7 +113,7 @@ public struct SessionStore: Sendable {
         let active = manifest?.activeTabID.flatMap { id in ordered.contains { $0.id == id } ? id : nil } ?? ordered.first?.id
         return RestoreResult(
             snapshots: ordered, activeTabID: active, quarantinedCount: quarantined,
-            recoveredOrphanCount: orphans.count, isReadOnly: false
+            recoveredOrphanCount: orphans.count, isReadOnly: false, windowIDs: manifest?.windowIDs ?? []
         )
     }
 

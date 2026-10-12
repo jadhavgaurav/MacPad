@@ -21,6 +21,8 @@ public final class TextDocument: Identifiable {
     public var diskModificationDate: Date?
     /// Set when the file cannot be written. Not saved in the session; it is checked again each time the file opens.
     public var isReadOnly = false
+    /// The window this tab was moved into. Nil means the main window.
+    public var windowID: UUID?
 
     public static let zoomRange: ClosedRange<Double> = 0.25...5
 
@@ -63,6 +65,7 @@ public final class TextDocument: Identifiable {
         formattedOverride = snapshot.formatted
         previewVisible = snapshot.previewVisible
         diskModificationDate = snapshot.diskModificationDate
+        windowID = snapshot.windowID
     }
 
     public var title: String { fileURL?.lastPathComponent ?? "Untitled" }
@@ -104,7 +107,8 @@ public final class TextDocument: Identifiable {
             wordWrap: wordWrapOverride,
             formatted: formattedOverride,
             previewVisible: previewVisible,
-            diskModificationDate: diskModificationDate
+            diskModificationDate: diskModificationDate,
+            windowID: windowID
         )
     }
 }
