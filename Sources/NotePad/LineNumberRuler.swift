@@ -45,21 +45,39 @@ final class LineNumberRuler: NSRulerView {
         guard let first = layoutManager.textLayoutFragment(for: CGPoint(x: 0, y: visible.minY)) else { return }
         let documentStart = contentStorage.documentRange.location
 
+        var lastFrame: CGRect?
+        var reachedEnd = false
         layoutManager.enumerateTextLayoutFragments(from: first.rangeInElement.location, options: [.ensuresLayout]) { fragment in
             let frame = fragment.layoutFragmentFrame
             if frame.minY > visible.maxY { return false }
+            lastFrame = frame
+            let fragmentEnd = contentStorage.offset(from: documentStart, to: fragment.rangeInElement.endLocation)
+            reachedEnd = fragmentEnd == contentStorage.offset(from: documentStart, to: layoutManager.documentRange.endLocation)
             let offset = contentStorage.offset(from: documentStart, to: fragment.rangeInElement.location)
             if let line = lineNumber(startingAtUTF16Offset: offset) {
-                let origin = convert(NSPoint(x: 0, y: frame.minY), from: textView)
-                let label = "\(line)" as NSString
-                let size = label.size(withAttributes: attributes)
-                label.draw(
-                    at: NSPoint(x: bounds.width - Self.padding - size.width, y: origin.y + (frame.height - size.height) / 2),
-                    withAttributes: attributes
-                )
+                drawLabel(line, at: frame, attributes: attributes, in: textView)
             }
             return true
         }
+
+        // A trailing newline starts a final empty line that has no layout fragment of its own.
+        if reachedEnd, let lastFrame, textView.string.hasSuffix("\n") {
+            let emptyLine = lineStarts.count
+            let frame = CGRect(x: lastFrame.minX, y: lastFrame.maxY, width: lastFrame.width, height: lastFrame.height)
+            if frame.minY <= visible.maxY { drawLabel(emptyLine, at: frame, attributes: attributes, in: textView) }
+        }
+    }
+
+    private func drawLabel(_ line: Int, at frame: CGRect, attributes: [NSAttributedString.Key: Any], in textView: NSTextView) {
+        // Fragment frames are in text container coordinates, which sit inside the text view's inset.
+        let inContainer = NSPoint(x: 0, y: frame.minY + textView.textContainerOrigin.y)
+        let origin = convert(inContainer, from: textView)
+        let label = "\(line)" as NSString
+        let size = label.size(withAttributes: attributes)
+        label.draw(
+            at: NSPoint(x: bounds.width - Self.padding - size.width, y: origin.y + (frame.height - size.height) / 2),
+            withAttributes: attributes
+        )
     }
 
     private func refreshLineStarts(_ text: String) {
