@@ -127,7 +127,7 @@ public struct SessionStore: Sendable {
         let files = try FileManager.default.contentsOfDirectory(at: quarantineURL, includingPropertiesForKeys: nil)
         return files.filter { $0.pathExtension == "json" }.map { url in
             let stamp = url.lastPathComponent.split(separator: "-").first.flatMap { Double($0) } ?? 0
-            let raw = (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+            let raw = (try? Data(contentsOf: url)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
             return QuarantinedFile(url: url, setAside: Date(timeIntervalSince1970: stamp), preview: String(raw.prefix(300)))
         }.sorted { $0.setAside > $1.setAside }
     }
@@ -143,7 +143,7 @@ public struct SessionStore: Sendable {
                 isDirty: true, zoom: decoded.zoom
             )
         } else {
-            snapshot = TabSnapshot(text: String(decoding: data, as: UTF8.self), isDirty: true)
+            snapshot = TabSnapshot(text: String(data: data, encoding: .utf8) ?? "", isDirty: true)
         }
         try FileManager.default.removeItem(at: file.url)
         return snapshot
