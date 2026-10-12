@@ -74,6 +74,17 @@ import Testing
         #expect(edit.selections == [NSRange(location: 1, length: 0), NSRange(location: 3, length: 0)])
     }
 
+    @Test func forwardDeleteRemovesTheCharacterAfterEachCaret() {
+        let edit = MultiCursor.deleteForward(at: [NSRange(location: 0, length: 0), NSRange(location: 3, length: 0)], in: "abcdef")
+        #expect(edit.text == "bcef")
+        #expect(edit.selections == [NSRange(location: 0, length: 0), NSRange(location: 2, length: 0)])
+    }
+
+    @Test func forwardDeleteAtTheEndChangesNothing() {
+        let edit = MultiCursor.deleteForward(at: [NSRange(location: 3, length: 0)], in: "abc")
+        #expect(edit.text == "abc")
+    }
+
     @Test func backspaceAtTheStartChangesNothing() {
         let edit = MultiCursor.deleteBackward(at: [NSRange(location: 0, length: 0)], in: "abc")
         #expect(edit.text == "abc")

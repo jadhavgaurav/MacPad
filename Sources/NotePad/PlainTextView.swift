@@ -57,6 +57,10 @@ final class PlainTextView: NSTextView {
     override func mouseDown(with event: NSEvent) {
         let flags = event.modifierFlags
         guard flags.contains(.option), event.clickCount == 1 else {
+            // A normal click drops every extra caret, as in VS Code, then behaves as usual.
+            if currentRanges.count > 1 {
+                collapseCarets(to: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)))
+            }
             super.mouseDown(with: event)
             return
         }
@@ -105,6 +109,22 @@ final class PlainTextView: NSTextView {
         applyMultiEdit(MultiCursor.insert("\n", at: currentRanges, in: string))
     }
 
+    override func deleteForward(_ sender: Any?) {
+        guard currentRanges.count > 1 else {
+            super.deleteForward(sender)
+            return
+        }
+        applyMultiEdit(MultiCursor.deleteForward(at: currentRanges, in: string))
+    }
+
+    override func insertTab(_ sender: Any?) {
+        guard currentRanges.count > 1 else {
+            super.insertTab(sender)
+            return
+        }
+        applyMultiEdit(MultiCursor.insert("\t", at: currentRanges, in: string))
+    }
+
     override func deleteBackward(_ sender: Any?) {
         guard currentRanges.count > 1 else {
             super.deleteBackward(sender)
@@ -119,7 +139,15 @@ final class PlainTextView: NSTextView {
             super.cancelOperation(sender)
             return
         }
-        setSelectedRange(NSRange(location: NSMaxRange(last), length: 0))
+        collapseCarets(to: NSMaxRange(last))
+    }
+
+    /// Leaves one caret at `index`. The layout manager's extra text selections are cleared first,
+    /// because setting selectedRanges alone does not remove them.
+    func collapseCarets(to index: Int) {
+        textLayoutManager?.textSelections = []
+        setSelectedRange(NSRange(location: index, length: 0))
+        needsDisplay = true
     }
 
     /// Applies a multi-cursor edit as one undo step and restores every caret.

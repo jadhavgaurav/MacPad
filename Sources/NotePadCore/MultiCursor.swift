@@ -129,6 +129,16 @@ public enum MultiCursor {
         })
     }
 
+    /// Forward Delete at every range. A range that is not empty is deleted. An empty range deletes the character after it.
+    public static func deleteForward(at ranges: [NSRange], in text: String) -> Edit {
+        let length = (text as NSString).length
+        return edit(text, replacing: ranges.map { range in
+            if range.length > 0 { return (range, "") }
+            if range.location >= length { return (range, "") }
+            return (NSRange(location: range.location, length: 1), "")
+        })
+    }
+
     /// Replaces each span and returns the new text. Each caret ends after its replacement.
     /// Spans that overlap or repeat are dropped, keeping the first one.
     static func edit(_ text: String, replacing spans: [(range: NSRange, with: String)]) -> Edit {
