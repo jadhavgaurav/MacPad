@@ -11,17 +11,24 @@ A native macOS text editor that looks and works like Windows 11 Notepad, built w
 
 ## Install
 
-1. Go to the [Releases page](https://github.com/jadhavgaurav/NotePad/releases) and download the latest `NotePad-<version>-macos.zip`.
-2. Unzip it and drag `NotePad.app` into your Applications folder.
-3. Open it. The first time, macOS may say the app can't be opened because it is from an unidentified developer. Right-click (or Control-click) `NotePad.app`, choose **Open**, then click **Open** again. You only need to do this once.
+1. Go to the [Releases page](https://github.com/jadhavgaurav/NotePad/releases) and download the latest `NotePad-<version>-macos.dmg`.
+2. Open the DMG and drag **NotePad** onto the **Applications** shortcut.
+3. Open NotePad from Applications. macOS will say it could not verify NotePad, so click **Done** (not Move to Trash).
+4. Allow it once:
+   - Open **System Settings → Privacy & Security**, scroll down to the message about NotePad, click **Open Anyway**, then enter your password.
+   - Or run this in Terminal, then open NotePad again:
 
-Each release also has a `.sha256` file. To check the download:
+     ```bash
+     xattr -dr com.apple.quarantine /Applications/NotePad.app
+     ```
+
+You only need to do this once. Each release also has a `.sha256` checksum file. To check a download:
 
 ```bash
-shasum -a 256 -c NotePad-<version>-macos.zip.sha256
+shasum -a 256 -c NotePad-<version>-macos.dmg.sha256
 ```
 
-NotePad is not yet notarized by Apple, which is why step 3 is needed.
+NotePad is not yet signed with an Apple Developer ID or notarized by Apple. That is why macOS shows this warning.
 
 ## Requirements
 
