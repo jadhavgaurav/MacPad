@@ -2,6 +2,12 @@
 
 All notable changes to MacPad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## Unreleased
+
+### Added
+
+- Drag a tab onto another MacPad window's tab strip to move it there, at the slot under the cursor.
+
 ## 1.4.0
 
 ### Added

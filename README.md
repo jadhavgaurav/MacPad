@@ -42,7 +42,7 @@ MacPad is made for the Mac. It is not a port of Windows Notepad, although its la
 ### Files and tabs
 
 - Open any text or Markdown file in tabs. Drag a file onto the window, or use File > Open.
-- Drag a tab sideways to reorder it, or drag it out of the tab strip to open it in its own window.
+- Drag a tab sideways to reorder it, drag it out of the tab strip to open it in its own window, or drop it on another MacPad window's tab strip to move it there.
 - Each window keeps its own tabs and active tab. Torn-off windows reopen after a restart.
 - Encodings: UTF-8, UTF-8 with BOM, UTF-16 and Windows-1252. Line endings: LF, CRLF and CR. Both are detected on open and can be changed from the status bar.
 - Read-only files open with a banner and a Save As button.
