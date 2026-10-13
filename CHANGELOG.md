@@ -2,6 +2,12 @@
 
 All notable changes to MacPad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.4.3
+
+### Fixed
+
+- Dropping a tab on another MacPad window's tab strip now moves it there. The strip's position was never reported, so no drop was ever recognised as landing on a strip.
+
 ## 1.4.2
 
 ### Fixed

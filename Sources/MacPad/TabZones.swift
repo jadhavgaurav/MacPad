@@ -18,9 +18,12 @@ final class TabZoneRegistry {
         zones[id, default: Zone()].window = window
     }
 
-    func updateFrames(for id: UUID, strip: CGRect, tabs: [UUID: CGRect]) {
-        zones[id, default: Zone()].stripFrame = strip
-        zones[id, default: Zone()].tabFrames = tabs
+    func updateStrip(for id: UUID, frame: CGRect) {
+        zones[id, default: Zone()].stripFrame = frame
+    }
+
+    func updateTabs(for id: UUID, frames: [UUID: CGRect]) {
+        zones[id, default: Zone()].tabFrames = frames
     }
 
     func remove(_ id: UUID) {

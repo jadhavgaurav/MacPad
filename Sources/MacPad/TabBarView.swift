@@ -10,11 +10,36 @@ private struct TabFrameKey: PreferenceKey {
     }
 }
 
-/// The frame of the whole tab strip, in the window's global space.
-private struct StripFrameKey: PreferenceKey {
-    static let defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
+/// Reports the tab strip's frame (in the window's content coordinates) to the zone registry whenever it lays out.
+private struct StripFrameReader: NSViewRepresentable {
+    let windowID: UUID
+
+    final class Probe: NSView {
+        var windowID = UUID()
+        override var isFlipped: Bool { true }
+        override func layout() {
+            super.layout()
+            report()
+        }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            report()
+        }
+        func report() {
+            guard let content = window?.contentView else { return }
+            TabZoneRegistry.shared.updateStrip(for: windowID, frame: content.convert(bounds, from: self))
+        }
+    }
+
+    func makeNSView(context: Context) -> Probe {
+        let probe = Probe()
+        probe.windowID = windowID
+        return probe
+    }
+
+    func updateNSView(_ probe: Probe, context: Context) {
+        probe.windowID = windowID
+        probe.report()
     }
 }
 
@@ -22,7 +47,6 @@ struct TabBarView: View {
     let state: AppState
     let windowID: UUID
     @Local private var frames: [UUID: CGRect] = [:]
-    @Local private var strip: CGRect = .zero
 
     var body: some View {
         HStack(spacing: 2) {
@@ -33,7 +57,10 @@ struct TabBarView: View {
                     }
                 }
                 .padding(.horizontal, 2)
-                .onPreferenceChange(TabFrameKey.self) { frames = $0; publishZone() }
+                .onPreferenceChange(TabFrameKey.self) { newFrames in
+                    frames = newFrames
+                    TabZoneRegistry.shared.updateTabs(for: windowID, frames: newFrames)
+                }
             }
             .mask(
                 LinearGradient(
@@ -54,15 +81,7 @@ struct TabBarView: View {
         .padding(4)
         .frame(height: 38)
         .glassCapsule()
-        .background(GeometryReader { proxy in
-            Color.clear.preference(key: StripFrameKey.self, value: proxy.frame(in: .global))
-        })
-        .onPreferenceChange(StripFrameKey.self) { strip = $0; publishZone() }
-    }
-
-    /// Tells the window registry where this strip and its tabs are, so other windows can drop tabs here.
-    private func publishZone() {
-        TabZoneRegistry.shared.updateFrames(for: windowID, strip: strip, tabs: frames)
+        .background(StripFrameReader(windowID: windowID))
     }
 }
 
