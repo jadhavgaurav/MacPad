@@ -2,17 +2,14 @@
 
 All notable changes to MacPad are listed here. Each release on GitHub also lists the commits since the previous release.
 
-## Unreleased
+## 1.4.1
 
 ### Added
 
+- A Settings window (MacPad > Settings, Command-comma, or the gear icon in the toolbar) with General and Shortcuts panes. The Shortcuts pane lists every shortcut and mouse gesture, with search. Help > Keyboard Shortcuts opens it directly.
 - Drag a tab onto another MacPad window's tab strip to move it there, at the slot under the cursor.
 
 ## 1.4.0
-
-### Added
-
-- A Settings window (MacPad > Settings, Command-comma) with General and Shortcuts panes. The Shortcuts pane lists every shortcut and mouse gesture, with search. Help > Keyboard Shortcuts opens it directly.
 
 ### Changed
 
