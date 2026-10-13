@@ -8,6 +8,7 @@ struct ContentView: View {
     private let state = AppState.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openSettings) private var openSettings
     @AppStorage(SettingsKey.fontName) private var fontName = EditorSettings.systemMono
     @AppStorage(SettingsKey.fontSize) private var fontSize = 13.0
     @AppStorage(SettingsKey.wrapByDefault) private var wrapByDefault = true
@@ -38,6 +39,7 @@ struct ContentView: View {
         .task {
             state.openWindowAction = { openWindow(value: $0) }
             state.dismissWindowAction = { dismissWindow(value: $0) }
+            state.openSettingsAction = { openSettings() }
             if windowID == AppState.mainWindowID { await state.start() }
         }
         .dropDestination(for: URL.self) { urls, _ in

@@ -100,6 +100,12 @@ With several cursors, typing, Space, Return, Tab, Backspace, Delete, arrow keys,
 
 ## Keyboard shortcuts
 
+Open **MacPad > Settings** (Command-comma), then the **Shortcuts** pane, to see every shortcut with a search box. **Help > Keyboard Shortcuts** opens the same pane.
+
+![Settings window showing the Shortcuts pane](docs/images/settings-shortcuts.jpg)
+
+The most used shortcuts:
+
 | Task | Shortcut |
 | --- | --- |
 | New tab | Command-N |
@@ -123,6 +129,13 @@ With several cursors, typing, Space, Return, Tab, Backspace, Delete, arrow keys,
 | Toggle word wrap | Command-Option-W |
 | Focus Mode | Command-Shift-Return |
 | Zoom in, out, actual size | Command-=, Command--, Command-0 |
+
+## Settings
+
+MacPad > Settings (Command-comma) has two panes:
+
+- **General:** the editor font and size, wrapping long lines by default, and Markdown styling for plain text files.
+- **Shortcuts:** every shortcut and mouse gesture, grouped by what it does, with search.
 
 ## Install
 

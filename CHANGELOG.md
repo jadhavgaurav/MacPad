@@ -4,6 +4,10 @@ All notable changes to MacPad are listed here. Each release on GitHub also lists
 
 ## 1.4.0
 
+### Added
+
+- A Settings window (MacPad > Settings, Command-comma) with General and Shortcuts panes. The Shortcuts pane lists every shortcut and mouse gesture, with search. Help > Keyboard Shortcuts opens it directly.
+
 ### Changed
 
 - Renamed the app to MacPad, to make clear that it is a Mac app. The bundle is MacPad.app and the downloads are MacPad-<version>-macos.dmg and .zip. The repository is now MacPad too, and GitHub redirects the old links. Your sessions, history, snippets and settings are kept, since they are stored under the same folder names as before.

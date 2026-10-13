@@ -56,6 +56,8 @@ final class AppState {
     /// Opens or closes a window for a torn-off tab. The window view sets these, since it owns the environment actions.
     @ObservationIgnored var openWindowAction: ((UUID) -> Void)?
     @ObservationIgnored var dismissWindowAction: ((UUID) -> Void)?
+    /// Opens the Settings window. Set by the window view, which owns the `openSettings` environment action.
+    @ObservationIgnored var openSettingsAction: (() -> Void)?
 
     var activeDocument: TextDocument? { tabs.first { $0.id == activeID } }
     var activeEditor: EditorController? { activeID.flatMap { editors[$0] } }

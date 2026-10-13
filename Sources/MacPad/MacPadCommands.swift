@@ -97,6 +97,13 @@ struct MacPadCommands: Commands {
             Button(state.showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers") { state.showLineNumbers.toggle() }
                 .keyboardShortcut("l", modifiers: [.command, .option])
         }
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings\u{2026}") { SettingsNavigation.open(.general) }
+                .keyboardShortcut(",")
+        }
+        CommandGroup(replacing: .help) {
+            Button("Keyboard Shortcuts") { SettingsNavigation.open(.shortcuts) }
+        }
         CommandGroup(after: .windowArrangement) {
             Divider()
             Button("Show Next Tab") { state.cycleTab(by: 1) }.keyboardShortcut("]", modifiers: [.command, .shift])
