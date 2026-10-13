@@ -2,7 +2,7 @@
 
 All notable changes to NotePad are listed here. Each release on GitHub also lists the commits since the previous release.
 
-## Unreleased
+## 1.4.0
 
 ### Changed
 
