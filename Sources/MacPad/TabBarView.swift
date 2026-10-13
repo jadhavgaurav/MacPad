@@ -2,7 +2,7 @@ import AppKit
 import MacPadCore
 import SwiftUI
 
-/// The on-screen frame of each tab, in the tab strip's coordinate space, used to work out drag positions.
+/// The frame of each tab in the window's global space, used to work out where a dragged tab lands.
 private struct TabFrameKey: PreferenceKey {
     static let defaultValue: [UUID: CGRect] = [:]
     static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
@@ -10,12 +10,19 @@ private struct TabFrameKey: PreferenceKey {
     }
 }
 
-private let tabStripSpace = "tabStrip"
+/// The frame of the whole tab strip, in the window's global space.
+private struct StripFrameKey: PreferenceKey {
+    static let defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
+    }
+}
 
 struct TabBarView: View {
     let state: AppState
     let windowID: UUID
     @Local private var frames: [UUID: CGRect] = [:]
+    @Local private var strip: CGRect = .zero
 
     var body: some View {
         HStack(spacing: 2) {
@@ -26,8 +33,7 @@ struct TabBarView: View {
                     }
                 }
                 .padding(.horizontal, 2)
-                .coordinateSpace(name: tabStripSpace)
-                .onPreferenceChange(TabFrameKey.self) { frames = $0 }
+                .onPreferenceChange(TabFrameKey.self) { frames = $0; publishZone() }
             }
             .mask(
                 LinearGradient(
@@ -48,6 +54,15 @@ struct TabBarView: View {
         .padding(4)
         .frame(height: 38)
         .glassCapsule()
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: StripFrameKey.self, value: proxy.frame(in: .global))
+        })
+        .onPreferenceChange(StripFrameKey.self) { strip = $0; publishZone() }
+    }
+
+    /// Tells the window registry where this strip and its tabs are, so other windows can drop tabs here.
+    private func publishZone() {
+        TabZoneRegistry.shared.updateFrames(for: windowID, strip: strip, tabs: frames)
     }
 }
 
@@ -77,7 +92,7 @@ private struct TabItemView: View {
         .foregroundStyle(isActive ? .primary : .secondary)
         .background(Capsule().fill(isActive ? Color.accentColor.opacity(0.18) : isHovering ? Color.primary.opacity(0.06) : .clear))
         .background(GeometryReader { proxy in
-            Color.clear.preference(key: TabFrameKey.self, value: [doc.id: proxy.frame(in: .named(tabStripSpace))])
+            Color.clear.preference(key: TabFrameKey.self, value: [doc.id: proxy.frame(in: .global)])
         })
         .contentShape(Capsule())
         .pointingHandCursor()
@@ -93,7 +108,7 @@ private struct TabItemView: View {
     }
 
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 6, coordinateSpace: .named(tabStripSpace))
+        DragGesture(minimumDistance: 6, coordinateSpace: .global)
             .onChanged { value in dragOffset = value.translation.width }
             .onEnded { value in
                 dragOffset = 0
@@ -101,10 +116,16 @@ private struct TabItemView: View {
             }
     }
 
-    /// A drop well below or above the strip tears the tab off into its own window, under the cursor. A sideways
-    /// drop moves the tab to the slot where it was let go.
+    /// A drop on another window's tab strip moves the tab there. A drop well away from every strip tears the tab off
+    /// into its own window, under the cursor. Otherwise a sideways drop moves the tab to the slot where it was let go.
     private func finishDrag(translation: CGSize) {
-        if abs(translation.height) > 40 {
+        let hit = TabZoneRegistry.shared.target(atScreenPoint: NSEvent.mouseLocation)
+        if let hit, hit.window != windowID {
+            state.moveTab(doc.id, toWindow: hit.window, at: hit.local)
+            return
+        }
+        let far = abs(translation.height) > (hit == nil ? 40 : 56)
+        if far {
             state.moveToNewWindow(doc.id, at: NSEvent.mouseLocation)
             return
         }

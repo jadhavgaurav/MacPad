@@ -35,7 +35,10 @@ struct ContentView: View {
             VersionHistoryView(state: state)
         }
         // A torn-off window hands its tabs back when its content goes away, which happens when the window closes.
-        .onDisappear { if windowID != AppState.mainWindowID { state.windowWasClosed(windowID) } }
+        .onDisappear {
+            TabZoneRegistry.shared.remove(windowID)
+            if windowID != AppState.mainWindowID { state.windowWasClosed(windowID) }
+        }
         .task {
             state.openWindowAction = { openWindow(value: $0) }
             state.dismissWindowAction = { dismissWindow(value: $0) }
@@ -186,6 +189,7 @@ private struct WindowConfigurator: NSViewRepresentable {
             let center = NotificationCenter.default
             let windowID = windowID
             let state = state
+            TabZoneRegistry.shared.setWindow(window, for: windowID)
             tokens.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { _ in
                 MainActor.assumeIsolated { state.focusedWindowID = windowID }
             })

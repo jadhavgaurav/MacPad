@@ -34,6 +34,23 @@ extension AppState {
         persistManifest()
     }
 
+    /// Moves a tab into another window's tab strip, at the slot under `local`, a point in that window's content.
+    func moveTab(_ id: UUID, toWindow target: UUID, at local: CGPoint) {
+        guard let doc = tabs.first(where: { $0.id == id }) else { return }
+        let source = windowID(of: doc)
+        let frames = TabZoneRegistry.shared.zones[target]?.tabFrames ?? [:]
+        let position = tabs(in: target).filter { $0.id != id && (frames[$0.id]?.midX ?? 0) < local.x }.count
+        if activeByWindow[source] == id {
+            activeByWindow[source] = tabs(in: source).first { $0.id != id }?.id
+        }
+        doc.windowID = target == AppState.mainWindowID ? nil : target
+        moveTab(id, toPosition: position)
+        activeByWindow[target] = id
+        persist(doc)
+        windowLostTab(source)
+        TabZoneRegistry.shared.zones[target]?.window?.makeKeyAndOrderFront(nil)
+    }
+
     /// Moves a tab into a new window of its own, which opens with that tab in front. `screenPoint` is where the
     /// drop happened, so the window can open under the cursor.
     func moveToNewWindow(_ id: UUID, at screenPoint: NSPoint? = nil) {
