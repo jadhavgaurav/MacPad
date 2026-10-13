@@ -10,7 +10,7 @@ ICONSET="$ROOT/build/AppIcon.iconset"
 
 cd "$ROOT"
 swift build -c "$CONFIG"
-BIN="$(swift build -c "$CONFIG" --show-bin-path)/NotePad"
+BIN="$(swift build -c "$CONFIG" --show-bin-path)/MacPad"
 
 rm -rf "$APP" "$ICONSET"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

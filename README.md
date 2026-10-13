@@ -160,7 +160,7 @@ flowchart LR
         Editor["PlainTextView and<br/>EditorController<br/>(TextKit 2)"]
         State["AppState<br/>(tabs, windows, focus)"]
     end
-    subgraph Core["NotePadCore (no UI)"]
+    subgraph Core["MacPadCore (no UI)"]
         Files["FileService<br/>atomic writes, encodings"]
         Session["SessionStore and<br/>SessionCoordinator"]
         Find["FindEngine"]
@@ -254,9 +254,9 @@ You can also run the workflow by hand from the Actions tab to produce a build wi
 
 ## Project layout
 
-- `Sources/NotePadCore`: file I/O, sessions, find, line editing, multiple cursors, version history (no UI)
+- `Sources/MacPadCore`: file I/O, sessions, find, line editing, multiple cursors, version history (no UI)
 - `Sources/MarkdownRendering`: Markdown to HTML, the preview script and styling
-- `Sources/NotePad`: the AppKit editor and the SwiftUI interface
+- `Sources/MacPad`: the AppKit editor and the SwiftUI interface
 - `Tests/`: unit tests for the core and rendering modules
 - `Scripts/`: `bundle.sh` builds the app, `make-icon.swift` draws the icon
 - `docs/`: design notes, the feature plan, the verification log and images
