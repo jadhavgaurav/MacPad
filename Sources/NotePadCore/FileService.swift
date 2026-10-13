@@ -20,7 +20,7 @@ public enum FileServiceError: Error, Equatable, LocalizedError {
         case .fileNotFound(let url):
             "\(url.lastPathComponent) can't be found. It may have been moved or deleted."
         case .permissionDenied(let url):
-            "NotePad doesn't have permission to access \(url.lastPathComponent)."
+            "MacPad doesn't have permission to access \(url.lastPathComponent)."
         case .undecodable(let url, let tried):
             "\(url.lastPathComponent) isn't valid \(tried.map(\.label).joined(separator: " or ")). Try reopening it with another encoding."
         case .readFailed(let url, let reason):

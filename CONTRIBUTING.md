@@ -1,4 +1,4 @@
-# Contributing to NotePad
+# Contributing to MacPad
 
 Thanks for helping. Before you start:
 

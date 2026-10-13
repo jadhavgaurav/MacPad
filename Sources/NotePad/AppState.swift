@@ -65,7 +65,7 @@ final class AppState {
     func start() async {
         guard !started else { return }
         started = true
-        // Paths passed on the command line (for example `NotePad.app/Contents/MacOS/NotePad notes.txt`).
+        // Paths passed on the command line (for example `MacPad.app/Contents/MacOS/MacPad notes.txt`).
         pendingURLs += CommandLine.arguments.dropFirst().compactMap { argument -> URL? in
             let url = URL(fileURLWithPath: argument)
             return FileManager.default.fileExists(atPath: url.path) ? url : nil
@@ -75,7 +75,7 @@ final class AppState {
             sessionStore = store
             let result = try store.restore()
             if result.isReadOnly {
-                showNotice("This session was saved by a newer version of NotePad, so changes won't be remembered.")
+                showNotice("This session was saved by a newer version of MacPad, so changes won't be remembered.")
             } else {
                 coordinator = SessionCoordinator(store: store) { [weak self] error in
                     Task { @MainActor in self?.showNotice("Couldn't save your session. \(error.localizedDescription)") }

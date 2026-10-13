@@ -14,7 +14,7 @@ struct RecoveryView: View {
                 Text("Nothing was set aside. Every saved tab opened normally.")
                     .foregroundStyle(.secondary)
             } else {
-                Text("These tabs could not be read when NotePad opened. Recovering one opens its text in a new tab.")
+                Text("These tabs could not be read when MacPad opened. Recovering one opens its text in a new tab.")
                     .font(.callout).foregroundStyle(.secondary)
                 List(files) { file in
                     VStack(alignment: .leading, spacing: 6) {

@@ -2,6 +2,13 @@
 
 All notable changes to NotePad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## Unreleased
+
+### Changed
+
+- Renamed the app to MacPad, to make clear that it is a Mac app. The bundle is MacPad.app and the downloads are MacPad-<version>-macos.dmg and .zip. The repository keeps its name. Your sessions, history, snippets and settings are kept, since they are stored under the same names as before.
+- The README is rewritten, with screenshots, a feature guide, a keyboard shortcut table and diagrams of the architecture, saving and windows.
+
 ## 1.3.1
 
 ### Fixed

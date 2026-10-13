@@ -1,6 +1,6 @@
 import AppKit
 
-// Draws the NotePad app icon at every size macOS needs and writes an .iconset folder.
+// Draws the MacPad app icon at every size macOS needs and writes an .iconset folder.
 // Usage: swift Scripts/make-icon.swift <output.iconset>
 
 func render(size: Int) -> Data {

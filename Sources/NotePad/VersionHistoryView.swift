@@ -33,11 +33,11 @@ struct VersionHistoryView: View {
 
     @ViewBuilder private var content: some View {
         if state.activeDocument?.fileURL == nil {
-            message("Save this tab to a file first. NotePad keeps a copy each time you save it.")
+            message("Save this tab to a file first. MacPad keeps a copy each time you save it.")
         } else if let errorMessage {
             message(errorMessage)
         } else if versions.isEmpty {
-            message("No saved versions yet. NotePad keeps a copy each time you save this file.")
+            message("No saved versions yet. MacPad keeps a copy each time you save this file.")
         } else {
             HStack(spacing: 12) {
                 List(versions, selection: $selection) { version in

@@ -1,6 +1,6 @@
 name: Release
 
-# Builds NotePad.app on a macOS runner and publishes it to GitHub Releases.
+# Builds MacPad.app on a macOS runner and publishes it to GitHub Releases.
 # Push a tag such as v1.0.0 to release. Run it by hand from the Actions tab to test a build without a release.
 
 on:
@@ -49,23 +49,23 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          ZIP="NotePad-${VERSION}-macos.zip"
-          ditto -c -k --sequesterRsrc --keepParent build/NotePad.app "$ZIP"
+          ZIP="MacPad-${VERSION}-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/MacPad.app "$ZIP"
           shasum -a 256 "$ZIP" > "$ZIP.sha256"
 
           # DMG: the app next to an Applications shortcut, so users can drag it across.
           STAGING="$(mktemp -d)"
-          cp -R build/NotePad.app "$STAGING/"
+          cp -R build/MacPad.app "$STAGING/"
           ln -s /Applications "$STAGING/Applications"
-          DMG="NotePad-${VERSION}-macos.dmg"
-          hdiutil create -volname "NotePad ${VERSION}" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
+          DMG="MacPad-${VERSION}-macos.dmg"
+          hdiutil create -volname "MacPad ${VERSION}" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
           shasum -a 256 "$DMG" > "$DMG.sha256"
-          ls -l NotePad-*
+          ls -l MacPad-*
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NotePad-${{ steps.version.outputs.version }}
-          path: NotePad-*
+          name: MacPad-${{ steps.version.outputs.version }}
+          path: MacPad-*
           if-no-files-found: error
 
   release:
@@ -92,6 +92,6 @@ jobs:
             gh release upload "$REF_NAME" dist/* --clobber
           else
             gh release create "$REF_NAME" dist/* \
-              --title "NotePad $REF_NAME" \
+              --title "MacPad $REF_NAME" \
               --generate-notes
           fi

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Builds NotePad and assembles NotePad.app in ./build. Works with Command Line Tools only (no Xcode needed).
+# Builds MacPad and assembles MacPad.app in ./build. Works with Command Line Tools only (no Xcode needed).
 # Usage: Scripts/bundle.sh [debug|release]   (default: release)
 set -euo pipefail
 
 CONFIG="${1:-release}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$ROOT/build/NotePad.app"
+APP="$ROOT/build/MacPad.app"
 ICONSET="$ROOT/build/AppIcon.iconset"
 
 cd "$ROOT"
@@ -14,7 +14,7 @@ BIN="$(swift build -c "$CONFIG" --show-bin-path)/NotePad"
 
 rm -rf "$APP" "$ICONSET"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/NotePad"
+cp "$BIN" "$APP/Contents/MacOS/MacPad"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
 # Release builds pass APP_VERSION (from the git tag). Stamp it before signing, because editing the plist afterwards breaks the signature.
