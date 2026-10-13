@@ -55,6 +55,8 @@ struct ToolbarView: View {
                 state.togglePreview()
             }
             iconButton("magnifyingglass", help: "Find (\u{2318}F)") { state.find.show(replace: false) }
+            divider
+            iconButton("gearshape", help: "Settings (\u{2318},)", label: "Settings") { SettingsNavigation.open(.general) }
         }
         .buttonStyle(.plain)
         .menuStyle(.borderlessButton)

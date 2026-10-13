@@ -132,7 +132,7 @@ The most used shortcuts:
 
 ## Settings
 
-MacPad > Settings (Command-comma) has two panes:
+Open Settings with the gear icon at the right end of the toolbar, with **MacPad > Settings** (Command-comma), or from the menus. It has two panes:
 
 - **General:** the editor font and size, wrapping long lines by default, and Markdown styling for plain text files.
 - **Shortcuts:** every shortcut and mouse gesture, grouped by what it does, with search.
