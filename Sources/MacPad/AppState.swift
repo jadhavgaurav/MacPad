@@ -49,6 +49,8 @@ final class AppState {
     @ObservationIgnored var sessionStore: SessionStore?
     @ObservationIgnored var editors: [UUID: EditorController] = [:]
     @ObservationIgnored var started = false
+    /// True once the saved session has been read, so windows know which torn-off windows are real.
+    @ObservationIgnored var sessionLoaded = false
     @ObservationIgnored var pendingURLs: [URL] = []
     @ObservationIgnored var noticeTask: Task<Void, Never>?
     @ObservationIgnored var persistChain: Task<Void, Never>?
@@ -111,6 +113,7 @@ final class AppState {
         if !queued.isEmpty { open(queued) }
         checkDisk()
         refreshStats(textChanged: true)
+        sessionLoaded = true
     }
 
     /// Writes every tab and the manifest. Awaited before the app quits.

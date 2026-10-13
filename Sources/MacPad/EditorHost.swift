@@ -17,7 +17,9 @@ struct EditorHost: NSViewRepresentable {
     }
 
     func updateNSView(_ container: NSView, context: Context) {
-        if controller.scrollView.superview !== container { embed(controller.scrollView, in: container) }
+        // Embed only when nothing holds the view. When a tab moves to another window, that window's container takes
+        // the view. This old container must not take it back, or the moved tab would lose its editor.
+        if controller.scrollView.superview == nil { embed(controller.scrollView, in: container) }
         controller.apply(settings: settings, zoom: zoom, wrap: wrap, formatted: formatted, showLineNumbers: showLineNumbers)
     }
 

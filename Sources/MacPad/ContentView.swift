@@ -37,13 +37,21 @@ struct ContentView: View {
         // A torn-off window hands its tabs back when its content goes away, which happens when the window closes.
         .onDisappear {
             TabZoneRegistry.shared.remove(windowID)
-            if windowID != AppState.mainWindowID { state.windowWasClosed(windowID) }
+            state.windowWasClosed(windowID)
         }
         .task {
             state.openWindowAction = { openWindow(value: $0) }
-            state.dismissWindowAction = { dismissWindow(value: $0) }
+            state.dismissWindowAction = { window in
+                if window == AppState.mainWindowID { dismissWindow(id: "main") } else { dismissWindow(value: window) }
+            }
             state.openSettingsAction = { openSettings() }
-            if windowID == AppState.mainWindowID { await state.start() }
+            if windowID == AppState.mainWindowID {
+                await state.start()
+            } else {
+                // macOS can reopen a torn-off window from an earlier run. If the session has no such window, close it.
+                while !state.sessionLoaded { try? await Task.sleep(for: .milliseconds(40)) }
+                if !state.detachedWindowIDs.contains(windowID) { dismissWindow(value: windowID) }
+            }
         }
         .dropDestination(for: URL.self) { urls, _ in
             state.open(urls.filter(\.isFileURL))
@@ -191,7 +199,7 @@ private struct WindowConfigurator: NSViewRepresentable {
             let state = state
             TabZoneRegistry.shared.setWindow(window, for: windowID)
             tokens.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { _ in
-                MainActor.assumeIsolated { state.focusedWindowID = windowID }
+                MainActor.assumeIsolated { state.focusWindow(windowID) }
             })
         }
     }

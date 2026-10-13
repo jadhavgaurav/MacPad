@@ -2,6 +2,16 @@
 
 All notable changes to MacPad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.4.2
+
+### Fixed
+
+- Moving a tab to another window no longer leaves it without an editor. The old window used to take the editor view back, so the moved tab showed an empty window.
+- A window whose last tab moves to another window now closes, instead of staying open with a new empty tab. The last window left still keeps one empty tab.
+- The status bar, find and the preview follow whichever window is in front, so they no longer show the counts of a tab in another window.
+- A torn-off window that macOS reopens but that the saved session does not know about now closes by itself, instead of staying as a blank window.
+- Moving a window's only tab to a new window does nothing, since it would only swap one window for another.
+
 ## 1.4.1
 
 ### Added

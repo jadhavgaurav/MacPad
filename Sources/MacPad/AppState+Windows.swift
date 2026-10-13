@@ -56,6 +56,8 @@ extension AppState {
     func moveToNewWindow(_ id: UUID, at screenPoint: NSPoint? = nil) {
         guard let doc = tabs.first(where: { $0.id == id }) else { return }
         let source = windowID(of: doc)
+        // A window's only tab has nowhere to go: moving it would just swap one empty window for another.
+        guard tabs(in: source).count > 1 else { return }
         let window = UUID()
         if activeByWindow[source] == id {
             activeByWindow[source] = tabs(in: source).first { $0.id != id }?.id
@@ -69,30 +71,54 @@ extension AppState {
         windowLostTab(source)
     }
 
-    /// Closing a torn-off window puts its tabs back in the main window, so no tab or unsaved text is lost.
+    /// A window became the key window. Menus, the toolbar, find and the status bar follow it.
+    func focusWindow(_ window: UUID) {
+        guard focusedWindowID != window else { return }
+        focusedWindowID = window
+        find.refresh()
+        refreshStats(textChanged: true)
+        syncPreviewToActiveTab()
+    }
+
+    /// The windows that still hold tabs.
+    private var windowsWithTabs: Set<UUID> { Set(tabs.map { windowID(of: $0) }) }
+
+    /// When a window closes, its tabs move to another open window, so no tab or unsaved text is lost. The main
+    /// window is preferred. If no other window is open (the app is quitting), the tabs stay where they are.
     func windowWasClosed(_ window: UUID) {
-        guard detachedWindowIDs.contains(window) else { return }
+        let remaining = windowsWithTabs.subtracting([window])
+        let orphaned = tabs(in: window)
         detachedWindowIDs.removeAll { $0 == window }
-        for doc in tabs(in: window) {
-            doc.windowID = nil
+        activeByWindow[window] = nil
+        guard !orphaned.isEmpty else {
+            persistManifest()
+            return
+        }
+        guard let home = remaining.contains(AppState.mainWindowID)
+            ? AppState.mainWindowID : detachedWindowIDs.first(where: remaining.contains) else { return }
+        for doc in orphaned {
+            doc.windowID = home == AppState.mainWindowID ? nil : home
             persist(doc)
         }
-        activeByWindow[window] = nil
-        if activeByWindow[AppState.mainWindowID] == nil {
-            activeByWindow[AppState.mainWindowID] = tabs(in: AppState.mainWindowID).first?.id
-        }
+        if activeByWindow[home] == nil { activeByWindow[home] = orphaned.first?.id }
+        if focusedWindowID == window { focusedWindowID = home }
         persistManifest()
     }
 
-    /// Runs after a window loses a tab. An empty torn-off window closes. The main window always keeps one tab.
+    /// Runs after a window loses a tab. A window with no tabs closes, as long as another window is open. The last
+    /// window left keeps one empty tab, so the app never shows nothing.
     func windowLostTab(_ window: UUID) {
         if tabs(in: window).isEmpty {
-            if window == AppState.mainWindowID {
+            let others = windowsWithTabs
+            guard !others.isEmpty else {
                 add(TextDocument(), in: window)
                 return
             }
             detachedWindowIDs.removeAll { $0 == window }
             activeByWindow[window] = nil
+            if focusedWindowID == window, let next = others.contains(AppState.mainWindowID) ? AppState.mainWindowID : others.first {
+                focusedWindowID = next
+            }
             dismissWindowAction?(window)
         }
         persistManifest()

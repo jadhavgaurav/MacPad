@@ -158,7 +158,7 @@ private struct TabItemView: View {
         Button("Close to the Right") { state.closeTabs(after: doc.id) }
             .disabled(state.tabs(in: windowID).last?.id == doc.id)
         Button("Move to New Window") { state.moveToNewWindow(doc.id) }
-            .disabled(state.tabs(in: windowID).count < 2 && windowID != AppState.mainWindowID)
+            .disabled(state.tabs(in: windowID).count < 2)
         if let url = doc.fileURL {
             Divider()
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
