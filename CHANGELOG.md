@@ -2,6 +2,12 @@
 
 All notable changes to MacPad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.4.4
+
+### Added
+
+- A one-line installer, `install.sh`. It downloads the latest release, checks its checksum, installs MacPad into Applications and opens it. It does not change any macOS security setting.
+
 ## 1.4.3
 
 ### Fixed
