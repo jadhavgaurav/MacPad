@@ -42,7 +42,8 @@ if [ -n "$SUM_URL" ]; then
 fi
 
 echo "==> Mounting the disk image"
-MOUNT="$(hdiutil attach "$TMP/$NAME" -nobrowse -readonly | tail -1 | sed 's/.*\(\/Volumes\/.*\)/\1/')"
+# hdiutil is deprecated on recent macOS in favour of diskutil, which macOS 14 lacks. Drop only that warning.
+MOUNT="$(hdiutil attach "$TMP/$NAME" -nobrowse -readonly 2> >(grep -v 'is deprecated' >&2) | tail -1 | sed 's/.*\(\/Volumes\/.*\)/\1/')"
 if [ ! -d "$MOUNT/MacPad.app" ]; then
   echo "That disk image does not contain MacPad.app" >&2
   exit 1

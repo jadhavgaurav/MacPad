@@ -2,6 +2,12 @@
 
 All notable changes to MacPad are listed here. Each release on GitHub also lists the commits since the previous release.
 
+## 1.4.5
+
+### Fixed
+
+- The installer no longer prints the `hdiutil` deprecation warning.
+
 ## 1.4.4
 
 ### Added
